@@ -73,7 +73,7 @@ class TestAlleleMatch(unittest.TestCase):
             'CGGGGGGGGG',
             (0.333866, 0.113818)
         ],
-        [
+        [ # bi-allelic var, a complex cohort
             PysamVariant(
                 start=893788, stop=893825, alleles=('AAAAAAAAAAAAAATATATATATATATATATATATAT', 'A'),
             ),
