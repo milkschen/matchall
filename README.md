@@ -45,3 +45,8 @@ python src/allele_match.py -p cohort.release_missing2ref.no_calls.vcf.gz -v ${VC
 bcftools view -O z -i 'AF>"${AF_CUTOFF}"' -o ${VCF_COMMON} ${VCF_AF}; tabix ${VCF_COMMON}
 bcftools view -O z -i 'AF<="${AF_CUTOFF}"' -o ${VCF_RARE} ${VCF_AF}; tabix ${VCF_RARE}
 ```
+
+## Test
+```
+python src/test-allele_match.py
+```
