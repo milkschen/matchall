@@ -1,8 +1,6 @@
 import argparse
-import os
-import sys
-import pandas as pd
 import pysam
+import sys
 
 
 def parse_args():
@@ -16,151 +14,139 @@ def parse_args():
         help='path to the reference panel VCF (TBI or CSI indexes are required)'
     )
     parser.add_argument(
-        '-f', '--fasta',
+        '-r', '--ref',
         help='path to the reference FASTA (FAI index is required)'
     )
     parser.add_argument(
-        '-o', '--out',
-        help='path to output TSV'
-    )
-    parser.add_argument(
-        '-f', '--force-run', action='store_true',
-        help='Set to force running [False]'
+        '-o', '--out', default='-',
+        help='path to output VCF. Set to "-" to print to stdout. ["-"]'
     )
     args = parser.parse_args()
     return args
 
 
-def update_happy_outcome(var, outcome):
-    bvt = []
-    bd = []
-    # happy samples: 'TRUTH' and 'QUERY'
-    for sample in var.samples.items():
-        for v_format in sample[1].items():
-            if v_format[0] == 'BD':
-                bd.append(v_format[1])
-            elif v_format[0] == 'BVT':
-                bvt.append(v_format[1])
-    # TRUTH
-    if bd[0] == 'TP':
-        outcome[bvt[0]]['TRUTH.TP'] += 1
-        outcome[bvt[0]]['TRUTH.TOTAL'] += 1
-    elif bd[0] == 'FN':
-        outcome[bvt[0]]['TRUTH.FN'] += 1
-        outcome[bvt[0]]['TRUTH.TOTAL'] += 1
-    # QUERY
-    if bd[1] == 'FP':
-        outcome[bvt[1]]['QUERY.FP'] += 1
+def compare_haplotypes(
+    var: pysam.VariantRecord, cohort_vars: list, ref: str
+) -> pysam.VariantRecord:
+    # print(var)
+    # for c in cohort_vars:
+    #     print(c)
+    #     print(c.contig)
+    #     print(c.start)
+    #     print(c.stop)
+    #     print(c.alleles)
+    # print('ref', ref)
+    start = min(var.start, min([v.start for v in cohort_vars]))
+    # print(var.contig)
+    # print(var.start)
+    # print(var.stop)
+    # print(var.alleles)
+
+    # dict_alt_af:
+    #   - key: local haplotype
+    #   - value: allele frequency
+    dict_alt_af = {}
+    for i, alt in enumerate(var.alts):
+        var_seq = ref[:var.start-start] + alt + ref[var.stop-start:]
+        dict_alt_af[var_seq] = 0
+        # print(dict_alt_af)
+    for c_var in cohort_vars:
+        # loop through matched cohort variants
+        for i, alt in enumerate(c_var.alts):
+            # loop through each allele (index=`i`) in a cohort variant
+            c_var_seq = ref[:c_var.start-start] + alt + ref[c_var.stop-start:]
+            # print(c_var_seq, c_var.info['AF'][i])
+            if c_var_seq in dict_alt_af:
+                try:
+                    dict_alt_af[c_var_seq] = c_var.info['AF'][i]
+                except:
+                    raise ValueError('Error: "AF" field is not provided in a cohort variant')
+    var.info.__setitem__('AF', tuple(dict_alt_af.values()))
+    
+    return var
 
 
-def write_to_tsv(outcome, out_fn):
-    print(outcome, file=sys.stderr)
-    df = pd.DataFrame.from_dict(outcome, orient='index')
-    df['METRIC.Recall'] = df['TRUTH.TP'] / (df['TRUTH.TP'] + df['TRUTH.FN'])
-    df['METRIC.Precision'] = df['TRUTH.TP'] / (df['TRUTH.TP'] + df['QUERY.FP'])
-    df['METRIC.F1_Score'] = 2 / ((1/df['METRIC.Recall']) + (1/df['METRIC.Precision']))
-    df.to_csv(out_fn, sep='\t', float_format='%.6f')
-    print(df, file=sys.stderr)
-
-
-def summarize_accuracy(fn_happy_vcf, fn_summary):
-    ''' Summarize the accuracy of a hap.py annotated VCF file. '''
-    cycle = 0
-    fields = {
-        'TRUTH.TOTAL': 0,
-        'TRUTH.TP': 0,
-        'TRUTH.FN': 0,
-        'QUERY.FP': 0,
-    }
-    outcome = {'SNP': fields, 'INDEL': fields.copy()}
-
-    f_happy_vcf = pysam.VariantFile(fn_happy_vcf)
-    for var in f_happy_vcf.fetch():
-        # Only check variants in confident regions
-        if var.info.get('Regions'):
-            update_happy_outcome(var, outcome)
-            
-            if cycle > 0 and cycle % 1000000 == 0:
-                print(f'Process {cycle} records', file=std.stderr)
-            cycle += 1
-
-    write_to_tsv(outcome, fn_summary)
-
-
-
-def match_allele(var, f_panel, f_fasta):
+def match_allele(
+    var: pysam.VariantRecord,
+    f_panel: pysam.VariantFile,
+    f_fasta: pysam.FastaFile,
+    f_out: pysam.VariantFile
+) -> None:
     # var.start: 0-based; var.pos: 1-based
     # Pysam uses 0-based
     # var_region = (var.contig, var.start, var.start + max(var.alleles))
     # Fetch cohort variants
-    cohort_vars = f_panel.fetch(var.contig, var.start, var.start + max(var.alleles))
-    cohort_start = min([v.start for v in cohort_vars])
-    cohort_stop = min([v.stop for v in cohort_vars])
-    if not all([v.contig == var.contig for v in cohort_vars]):
-        raise ValueError(
-            "Fetched variants have disconcordant contigs: ",
-            [v.contig for v in cohort_vars])
-    # Fetch reference sequence
+    var_maxstop = max([var.start + len(a) for a in var.alleles])
+    cohort_vars = list(f_panel.fetch(
+        var.contig, var.start, var_maxstop))
+
+    if len(cohort_vars) == 0:
+        # If cannot find matched cohorts, set AF to 0
+        var.info.__setitem__('AF', 0)
+    else:
+        cohort_start = min(var.start, min([v.start for v in cohort_vars]))
+        cohort_maxstop = var_maxstop
+        for v in cohort_vars:
+            cohort_maxstop = max(cohort_maxstop, max([v.start + len(a) for a in v.alleles]))
+
+        if not all([v.contig == var.contig for v in cohort_vars]):
+            # All variants should have the same contig
+            raise ValueError(
+                "Fetched variants have disconcordant contigs: ",
+                [v.contig for v in cohort_vars])
+        # Fetch reference sequence
+        try:
+            ref_seq = f_fasta.fetch(reference=var.contig, start=cohort_start, end=cohort_maxstop)
+        except:
+            var.info.__setitem__('AF', 0)
+            print('Warning: encounter the edge of a contig. Set "AF"=0', file=sys.stderr)
+            # raise ValueError("Errors during fetching allele matching sequence in the ref FASTA")
+        f_out.write(compare_haplotypes(var, cohort_vars, ref_seq))
+
+
+def annotate_vcf(
+    fn_vcf: str, fn_panel_vcf: str, fn_fasta: str, fn_out: str
+) -> None:
     try:
-        query_sequence = f_fasta.fetch(var.contig, cohort_start, cohort_stop)
+        f_vcf = pysam.VariantFile(fn_vcf)
+        f_vcf.header.add_meta('INFO', items=[('ID','AF'), ('Number','A'), ('Type','Float'), ('Description','Population allele frequency')])
     except:
-        raise ValueError("Errors during fetching allele matching sequence in the ref FASTA")
+        raise ValueError(f'Error: Cannot open "{fn_vcf}"')
+    try:
+        f_panel = pysam.VariantFile(fn_panel_vcf)
+    except:
+        raise ValueError(f'Error: Cannot open "{fn_panel_vcf}"')
+    try:
+        f_fasta = pysam.FastaFile(fn_fasta)
+    except:
+        raise ValueError(f'Error: Cannot open "{fn_fasta}"')
+    try:
+        f_out = pysam.VariantFile(fn_out, 'w', header=f_vcf.header)
+    except:
+        raise ValueError(f'Error: Cannot create "{fn_out}"')
     
-
-    pass
-
-
-def annotate_vcf(fn_vcf, fn_panel_vcf, fn_fasta, fn_summary):
-    f_vcf = pysam.VariantFile(fn_vcf)
-    f_panel = pysam.VariantFile(fn_panel_vcf)
-    f_fasta = pysam.FastaFile
-    # for filt in f_vcf.header.filters:
-    #     print(filt)
-    # cnt = 0
     for var in f_vcf.fetch():
-        # hap.py specific
-        # # Only check variants in confident regions
-        # if var.info.get('Regions'):
-        #     pass
-        # print(var)
-        # cnt += 1
         if len(var.filter.keys()) != 1:
             print('Error: more than one filters for a variant. Exit.', file=sys.stderr)
             print(var)
             exit(1)
+        # Only check variants in confident regions (hap.py specific)
+        # if var.info.get('Regions'):
         elif var.filter.keys()[0] == 'PASS':
             # Only take 'PASS' variants
-            match_allele(var, f_panel, f_fasta)
-        input(var)
-    # print(cnt)
+            match_allele(var, f_panel, f_fasta, f_out)
 
 
 if __name__ == '__main__':
+    MIN_PYTHON = (3, 6)
+    if sys.version_info < MIN_PYTHON:
+        sys.exit('Python %s.%s or later is required.\n' % MIN_PYTHON)
+
     args = parse_args()
-    # fn_happy_vcf = args.vcf
-    # fn_panel_vcf = args.panel
-    # fn_summary = args.out
 
     annotate_vcf(
         fn_vcf=args.vcf,
         fn_panel_vcf=args.panel,
-        fn_fasta=args.fasta
-        fn_summary=args.out
+        fn_fasta=args.ref,
+        fn_out=args.out
     )
-    exit(0)
-    
-    print('Warning: the indel precision and F1_score measurements are not identical to official hap.py',
-           file=sys.stderr)
-    if not args.force_run:
-        if os.path.exists(args.out):
-            print(f'File "{args.out}" exists. Exit.', file=sys.stderr)
-            df = pd.read_csv(args.out, sep='\t')
-            print(df)
-            exit(0)
-
-    summarize_accuracy(
-        fn_happy_vcf=args.vcf,
-        fn_summary=args.out
-    )
-
-

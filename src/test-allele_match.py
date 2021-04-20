@@ -26,7 +26,20 @@ class TestAlleleMatch(unittest.TestCase):
         pass
     
     @parameterized.expand([
-        [
+        [ # bi-allelic var, one cohort
+            PysamVariant(
+                start=19003, stop=19004, alleles=('A', 'G')
+            ),
+            [
+                PysamVariant(
+                    start=19003, stop=19004, alleles=('A', 'G'),
+                    af=0.401558
+                )
+            ],
+            'A',
+            (0.401558,)
+        ],
+        [ # bi-allelic var, two cohorts
             PysamVariant(
                 start=20093, stop=20096, alleles=('TAA', 'T')
             ),
@@ -40,10 +53,41 @@ class TestAlleleMatch(unittest.TestCase):
                     af=0.0455272
                 )
             ],
-            'TAC'
+            'TAC',
+            (0.0455272,)
+        ],
+        [ # tri-allelic var, multiple cohorts
+            PysamVariant(
+                start=181582, stop=181587, alleles=('CGGGG', 'C', 'CG')
+            ),
+            [
+                PysamVariant(
+                    start=181582, stop=181589, alleles=('CGGGGGG', 'CGG', 'CGGG', 'CGGGGG', 'CGGGG', 'CG', 'CGGGGGGG', 'CGGGGGGGG', 'C', 'CGGGGGGGGG', 'CGGGGGC', 'CGGGGAGG'),
+                    af=(0.333866,0.113818,0.0810703,0.0513179,0.0171725,0.013778,0.00259585,0.00259585,0.00119808,0.000199681,0.000199681)
+                ),
+                PysamVariant(
+                    start=181582, stop=181591, alleles=('CGGGGGGGG', 'C'),
+                    af=0.00539137
+                )
+            ],
+            'CGGGGGGGGG',
+            (0.333866, 0.113818)
+        ],
+        [
+            PysamVariant(
+                start=893788, stop=893825, alleles=('AAAAAAAAAAAAAATATATATATATATATATATATAT', 'A'),
+            ),
+            [
+                PysamVariant(
+                    start=893786, stop=893827, alleles=('AAAAAAAAAAAAAAAATATATATATATATATATATATATAT', 'AAAAT', 'AATAT', 'AAAAA', 'AAAAAAAAAAAAAATATATATATATATATATATATATATAT', 'AAAAAAAAAAAAAATATATAT', 'AAAAAAAAAAAAAAAAAATATATATATATATATATATATAT', 'AAAAAAAAAAAAAAAATATATATATATATATAT', 'AAAAAAAAAAAATATATATAT', 'AAAAAAAAAAAAAAAATATATAT', 'AAAAAAAAAAAAAAAATATAT', 'AAAAAAAAAAAAAAATATATATATATATATATATATATATATAT', 'AAAAAAAAAAAAAAAATATATATAT', 'AAAAAAAAAAAAAAAAATATAT', 'AAAAAAAAAAAAAATATATATAT', 'AAAAAAAAAAATATATATATATATATATATATAT', 'AAAAAAAAAAAAAAATATATATATAT', 'AAAAAAAAAAAAATATATATATATAT'),
+                    af=(0.734225,0.0365415,0.0361422,0.000998403,0.00219649,0.000998403,0.00119808,0.000998403,0.000798722,0.000599042,0.000399361,0.000199681,0.000199681,0.000199681,0.000199681,0.000199681,0.000199681)
+                )
+            ],
+            'AAAAAAAAAAAAAAAATATATATATATATATATATATATATATA',
+            (0.734225,)
         ]
     ])
-    def test_compare_haplotype(self, var, cohorts, ref):
+    def test_compare_haplotype(self, var, cohorts, ref, gold):
         vcf_header = pysam.VariantHeader()
         vcf_header.contigs.add('chr1')
         vcf_header.add_meta('INFO', items=[('ID','AF'), ('Number','A'), ('Type','Float'), ('Description','Population allele frequency')])
@@ -63,29 +107,10 @@ class TestAlleleMatch(unittest.TestCase):
             v.info.__setitem__('AF', cohort.af)
             c_records.append(v)
         ref=ref
-        # record = vcf_header.new_record(
-        #     contig='chr1',
-        #     start=20093,
-        #     stop=20096,
-        #     alleles=('TAA', 'T'))
-        # cohorts = [
-        #     vcf_header.new_record(
-        #         # contig='chr1',
-        #         start=20093,
-        #         stop=20098,
-        #         alleles=('TAAAC', 'T')),
-        #     vcf_header.new_record(
-        #         # contig='chr1',
-        #         start=20093,
-        #         stop=20096,
-        #         alleles=('TAA', 'T'))
-        # ]
-        # cohorts[0].info.__setitem__('AF', 0.0107827)
-        # cohorts[1].info.__setitem__('AF', 0.0455272)
-        # ref='TAC'
         var = allele_match.compare_haplotypes(record, c_records, ref)
-        # print(var.info['AF'][0])
-        self.assertAlmostEqual(var.info['AF'][0], 0.0455272)
+        for i, a in enumerate(var.info['AF']):
+            self.assertAlmostEqual(a, gold[i])
+        # self.assertAlmostEqual(var.info['AF'][0], gold)
 
 if __name__ == '__main__':
     unittest.main()
