@@ -87,7 +87,7 @@ def match_allele(
 
     if len(cohort_vars) == 0:
         # If cannot find matched cohorts, set AF to 0
-        var.info.__setitem__('AF', 0)
+        var.info.__setitem__('AF', tuple([0 for i in var.alts]))
     else:
         cohort_start = min(var.start, min([v.start for v in cohort_vars]))
         cohort_maxstop = var_maxstop
@@ -103,7 +103,7 @@ def match_allele(
         try:
             ref_seq = f_fasta.fetch(reference=var.contig, start=cohort_start, end=cohort_maxstop)
         except:
-            var.info.__setitem__('AF', 0)
+            var.info.__setitem__('AF', tuple([0 for i in var.alts]))
             print('Warning: encounter the edge of a contig. Set "AF"=0', file=sys.stderr)
             # raise ValueError("Errors during fetching allele matching sequence in the ref FASTA")
         f_out.write(compare_haplotypes(var, cohort_vars, ref_seq))
