@@ -6,6 +6,8 @@ A variant can be represented in multiple formats, making annotating not straight
 This algorithm constructs local haplotype around a variant and its nearby cohort variants and then perform exact matching.
 Thereby, variants can be annotated accurately regardless of representation.
 
+Currently, we only support annotating the `AF` (population allele frequency) field, but it's not difficult to support other tags as long as they are provided in the cohort call set.
+
 ## Cohort variants
 A DeepVariant-GLnexus-based call set for the 1000 Genomes Project (2504 samples) is avaialable [here](https://console.cloud.google.com/storage/browser/brain-genomics-public/research/cohort/1KGP/cohort_dv_glnexus_opt/v3_missing2ref;tab=objects?prefix=&forceOnObjectsSortingFiltering=false).
 You can download it through the website, or use the following command:
