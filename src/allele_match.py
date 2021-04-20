@@ -36,6 +36,10 @@ def parse_args():
         '-o', '--out', default='-',
         help='path to output VCF. Set to "-" to print to stdout. ["-"]'
     )
+    parser.add_argument(
+        '--happy', action='store_true',
+        help='Set for hap.py VCFs [False]'
+    )
     args = parser.parse_args()
     return args
 
@@ -106,7 +110,7 @@ def match_allele(
 
 
 def annotate_vcf(
-    fn_vcf: str, fn_panel_vcf: str, fn_fasta: str, fn_out: str,
+    fn_vcf: str, fn_panel_vcf: str, fn_fasta: str, fn_out: str, happy_vcf: bool,
     # af_cutoff: float=0, af_prefix: str=None
 ) -> None:
     try:
@@ -134,15 +138,18 @@ def annotate_vcf(
     #     f_out_low = pysam.VariantFile(af_prefix+f'-af_leq_{af_cutoff}.vcf', 'w', header=f_vcf.header)
     
     for var in f_vcf.fetch():
-        if len(var.filter.keys()) != 1:
-            print('Error: more than one filters for a variant. Exit.', file=sys.stderr)
-            print(var)
-            exit(1)
         # Only check variants in confident regions (hap.py specific)
-        # if var.info.get('Regions'):
-        elif var.filter.keys()[0] == 'PASS':
-            # Only take 'PASS' variants
-            match_allele(var, f_panel, f_fasta, f_out)
+        if happy_vcf:
+            if var.info.get('Regions'):
+                match_allele(var, f_panel, f_fasta, f_out)
+        else:
+            if len(var.filter.keys()) != 1:
+                print('Error: more than one filters for a variant. Exit.', file=sys.stderr)
+                print(var)
+                exit(1)
+            if var.filter.keys()[0] == 'PASS':
+                # Only take 'PASS' variants
+                match_allele(var, f_panel, f_fasta, f_out)
 
 
 if __name__ == '__main__':
@@ -157,6 +164,7 @@ if __name__ == '__main__':
         fn_panel_vcf=args.panel,
         fn_fasta=args.ref,
         fn_out=args.out,
+        happy_vcf=args.happy
         # af_cutoff=args.allele_frequency_cutoff,
         # af_prefix=args.allele_frequency_prefix
     )
