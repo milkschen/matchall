@@ -144,9 +144,9 @@ def annotate_vcf(
                 match_allele(var, f_panel, f_fasta, f_out)
         else:
             if len(var.filter.keys()) != 1:
-                print('Error: more than one filters for a variant. Exit.', file=sys.stderr)
+                print('Warning: more than one filters for a variant. Exit.', file=sys.stderr)
                 print(var)
-                exit(1)
+                continue
             if var.filter.keys()[0] == 'PASS':
                 # Only take 'PASS' variants
                 match_allele(var, f_panel, f_fasta, f_out)
