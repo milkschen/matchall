@@ -32,7 +32,7 @@ for i in $(seq 1 22); do wget https://storage.googleapis.com/brain-genomics-publ
 You may also use other reference panels, such as the GRCh38-based 1000 Genomes calls, gnomAD, etc. 
 We require a VCF format where allele frequency information is provided as an `AF` tag in the `INFO` field.
 
-## Pipeline
+## Usage
 We first concatenate cohort VCFs for each contig as a unified one. If you're cohort call set is already unified, you can skip this step:
 ```
 ls cohort-chr*.release_missing2ref.no_calls.vcf.gz | sort -V > cohort.list
