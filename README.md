@@ -36,14 +36,14 @@ bcftools concat -f cohort.list -O z -o cohort.release_missing2ref.no_calls.vcf.g
 ```
 VCF=<vcf> # VCF to be annotated
 REF=<grch38.fa> # reference FASTA for VCF
-AF_CUTOFF="0.05" # allele frequency cutoff; we'll only a VCF with AF > `AF_CUTOFF` and a VCF with AF < `AF_CUTOFF`
+AF_CUTOFF=0.05 # allele frequency cutoff; we'll only a VCF with AF > `AF_CUTOFF` and a VCF with AF < `AF_CUTOFF`
 VCF_AF=<annotated.vcf> # path to the output annotated VCF
 VCF_COMMON=<annotated.common.vcf> # path to the output annotated common VCF
 VCF_RARE=<annotated.rare.vcf> # path to the output annotated rare VCF
 
 python src/allele_match.py -p cohort.release_missing2ref.no_calls.vcf.gz -v ${VCF} -r ${REF} -o - | bgzip > ${VCF_AF}; tabix ${VCF_AF}
-bcftools view -O z -i 'AF>"${AF_CUTOFF}"' -o ${VCF_COMMON} ${VCF_AF}; tabix ${VCF_COMMON}
-bcftools view -O z -i 'AF<="${AF_CUTOFF}"' -o ${VCF_RARE} ${VCF_AF}; tabix ${VCF_RARE}
+bcftools view -O z -i "AF>${AF_CUTOFF}" -o ${VCF_COMMON} ${VCF_AF}; tabix ${VCF_COMMON}
+bcftools view -O z -i "AF<=${AF_CUTOFF}" -o ${VCF_RARE} ${VCF_AF}; tabix ${VCF_RARE}
 ```
 
 ## Test
