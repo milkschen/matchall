@@ -129,6 +129,7 @@ def fetch_nearby_cohort(
     if len(cohort_vars) == 0:
         # If cannot find matched cohorts, set AF to 0
         var.info.__setitem__('AF', tuple([0 for i in var.alts]))
+        f_out.write(var)
     else:
         cohort_start = min(var.start, min([v.start for v in cohort_vars]))
         cohort_maxstop = var_maxstop
