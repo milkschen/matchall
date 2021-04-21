@@ -38,7 +38,11 @@ def parse_args():
     )
     parser.add_argument(
         '--happy', action='store_true',
-        help='Set for hap.py VCFs [False]'
+        help='Set for hap.py VCFs. [False]'
+    )
+    parser.add_argument(
+        '--debug', action='store_true',
+        help='Set to print debug messages. [False]'
     )
     args = parser.parse_args()
     return args
