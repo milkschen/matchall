@@ -85,6 +85,19 @@ class TestAlleleMatch(unittest.TestCase):
             ],
             'AAAAAAAAAAAAAAAATATATATATATATATATATATATATATA',
             (0.734225,)
+        ],
+        [ # a special case I only see from the octopus variant caller
+            PysamVariant(
+                start=143327539, stop=143327543, alleles=('CACA', '*', '*')
+            ),
+            [
+                PysamVariant(
+                    start=143327528, stop=143327551, alleles=('GACAGCGGCGGCACAGCGGCGGC', 'GACAGCGGCGGC', 'GACAGCGGCGGCGCGGCGGC', 'GATAGCGGCGGCACAGCGGCGGC', 'GACA', 'GCCAGCGGCGGCACAGCGGCGGC'),
+                    af=(0.0692891,0.000998403,0.00519169,0.000199681,0.000199681)
+                )
+            ],
+            'GACAGCGGCGGCACAGCGGCGGC',
+            (0,0)
         ]
     ])
     def test_compare_haplotype(self, var, cohorts, ref, gold):
