@@ -7,15 +7,15 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-v', '--vcf',
-        help='path to target happy.out.vcf'
+        help='Path to target VCF. [None]'
     )
     parser.add_argument(
         '-p', '--panel',
-        help='path to the reference panel VCF (TBI or CSI indexes are required)'
+        help='Path to the reference panel VCF (TBI or CSI indexes are required). [None]'
     )
     parser.add_argument(
         '-r', '--ref',
-        help='path to the reference FASTA (FAI index is required)'
+        help='Path to the reference FASTA (FAI index is required). [None]'
     )
     # parser.add_argument(
     #     '--allele-frequency-cutoff', type=float, default=0,
@@ -34,7 +34,7 @@ def parse_args():
     # )
     parser.add_argument(
         '-o', '--out', default='-',
-        help='path to output VCF. Set to "-" to print to stdout. ["-"]'
+        help='Path to output VCF. Set to "-" to print to stdout. ["-"]'
     )
     parser.add_argument(
         '--happy', action='store_true',
@@ -48,9 +48,20 @@ def parse_args():
     return args
 
 
-def compare_haplotypes(
+def match_allele(
     var: pysam.VariantRecord, cohort_vars: list, ref: str
-) -> pysam.VariantRecord:
+    ) -> pysam.VariantRecord:
+    ''' Match a variant with nearby cohorts using local haplotypes.
+
+    Inputs:
+        - var: Target variant.
+        - cohort_vars: list of pysam.VariantRecord. Fetched nearby cohorts.
+        - ref: Local REF haplotype
+    Returns:
+        - var: Target variant with annotation.
+    Raises:
+        - ValueError: If "AF" is not found in cohort variants.
+    '''
     start = min(var.start, min([v.start for v in cohort_vars]))
 
     # dict_alt_af:
@@ -75,12 +86,22 @@ def compare_haplotypes(
     return var
 
 
-def match_allele(
+def fetch_nearby_cohort(
     var: pysam.VariantRecord,
     f_panel: pysam.VariantFile,
     f_fasta: pysam.FastaFile,
     f_out: pysam.VariantFile
-) -> None:
+    ) -> None:
+    ''' Fetch nearby cohorts and local REF haplotype for a variant.
+
+    Inputs:
+        - var: Target variant.
+        - f_panel: Cohort VCF file.
+        - f_fasta: REF FASTA file.
+        - f_out: Output VCF file.
+    Raises:
+        - ValueError: If fetched variants don't share the same contig.
+    '''
     # var.start: 0-based; var.pos: 1-based
     # Pysam uses 0-based
     # var_region = (var.contig, var.start, var.start + max(var.alleles))
@@ -96,7 +117,8 @@ def match_allele(
         cohort_start = min(var.start, min([v.start for v in cohort_vars]))
         cohort_maxstop = var_maxstop
         for v in cohort_vars:
-            cohort_maxstop = max(cohort_maxstop, max([v.start + len(a) for a in v.alleles]))
+            cohort_maxstop = max(cohort_maxstop,
+                                 max([v.start + len(a) for a in v.alleles]))
 
         if not all([v.contig == var.contig for v in cohort_vars]):
             # All variants should have the same contig
@@ -105,18 +127,19 @@ def match_allele(
                 [v.contig for v in cohort_vars])
         # Fetch reference sequence
         try:
-            ref_seq = f_fasta.fetch(reference=var.contig, start=cohort_start, end=cohort_maxstop)
+            ref_seq = f_fasta.fetch(
+                reference=var.contig, start=cohort_start, end=cohort_maxstop)
         except:
             var.info.__setitem__('AF', tuple([0 for i in var.alts]))
             print('Warning: encounter the edge of a contig. Set "AF"=0', file=sys.stderr)
             # raise ValueError("Errors during fetching allele matching sequence in the ref FASTA")
-        f_out.write(compare_haplotypes(var, cohort_vars, ref_seq))
+        f_out.write(match_allele(var, cohort_vars, ref_seq))
 
 
 def annotate_vcf(
     fn_vcf: str, fn_panel_vcf: str, fn_fasta: str, fn_out: str, happy_vcf: bool,
     # af_cutoff: float=0, af_prefix: str=None
-) -> None:
+    ) -> None:
     try:
         f_vcf = pysam.VariantFile(fn_vcf)
         f_vcf.header.add_meta('INFO', items=[('ID','AF'), ('Number','A'), ('Type','Float'), ('Description','Population allele frequency')])
@@ -142,21 +165,18 @@ def annotate_vcf(
     #     f_out_low = pysam.VariantFile(af_prefix+f'-af_leq_{af_cutoff}.vcf', 'w', header=f_vcf.header)
     
     for var in f_vcf.fetch():
-        # Only check variants in confident regions (hap.py specific)
         if happy_vcf:
+            # Only check variants in confident regions (hap.py specific)
             if var.info.get('Regions'):
-                match_allele(var, f_panel, f_fasta, f_out)
+                fetch_nearby_cohort(var, f_panel, f_fasta, f_out)
         else:
-            # if len(var.filter.keys()) != 1:
-            #     print('Warning: more than one filters for a variant. Exit.', file=sys.stderr)
-            #     print(var)
-            #     continue
             if var.filter.get('PASS'):
                 # Only take 'PASS' variants
-                match_allele(var, f_panel, f_fasta, f_out)
+                fetch_nearby_cohort(var, f_panel, f_fasta, f_out)
 
 
 if __name__ == '__main__':
+    # We use python3.6 because we require dict is ordered.
     MIN_PYTHON = (3, 6)
     if sys.version_info < MIN_PYTHON:
         sys.exit('Python %s.%s or later is required.\n' % MIN_PYTHON)
