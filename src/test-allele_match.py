@@ -107,7 +107,7 @@ class TestAlleleMatch(unittest.TestCase):
             v.info.__setitem__('AF', cohort.af)
             c_records.append(v)
         ref=ref
-        var = allele_match.compare_haplotypes(record, c_records, ref)
+        var = allele_match.match_allele(record, c_records, ref)
         for i, a in enumerate(var.info['AF']):
             self.assertAlmostEqual(a, gold[i])
         # self.assertAlmostEqual(var.info['AF'][0], gold)
