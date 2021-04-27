@@ -13,8 +13,12 @@ def parse_args():
     )
     parser.add_argument(
         '-i', '--info', default='AF',
-        help='Info tags to query. Tags are separated by commas (e.g. AF,AC,AD). [AF]'
+        help='Info tags to retrieve. Tags are separated by commas (e.g. AF,AC,AD). [AF]'
     )
+    # parser.add_argument(
+    #     '-t', '--type', default='all',
+    #     help='Variant type. Options: all, snp, indel [all]'
+    # )
     parser.add_argument(
         '-o', '--out', default='-',
         help='Path to output TSV. ["-"]'
@@ -34,6 +38,7 @@ def summarize_info(fn_vcf, info, fn_out):
     info_summ['POS'] = []
     info_summ['REF'] = []
     info_summ['ALT'] = []
+    info_summ['TYPE'] = []
     for tag in info:
         info_summ[tag] = []
     for var in f_vcf.fetch():
@@ -42,6 +47,10 @@ def summarize_info(fn_vcf, info, fn_out):
             info_summ['POS'].append(var.start + 1)
             info_summ['REF'].append(var.alleles[0])
             info_summ['ALT'].append(alt)
+            if len(var.alleles[0]) == 1 and len(alt) == 1:
+                info_summ['TYPE'].append('SNP')
+            else:
+                info_summ['TYPE'].append('INDEL')
             for tag in info:
                 info_summ[tag].append(var.info[tag][i])
     df = pd.DataFrame.from_dict(info_summ)
