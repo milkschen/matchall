@@ -2,9 +2,15 @@
 
 This is a Pysam implementation of the variant allele matching algorithm described in this [preprint](https://doi.org/10.1101/2021.01.06.425550).
 
-A variant can be represented in multiple formats, making annotating not straightforward.
-This algorithm constructs local haplotype around a variant and its nearby cohort variants and then perform exact matching.
-Thereby, variants can be annotated accurately regardless of representation.
+A variant can be represented in multiple formats. An example in the table below shows a variant in two forms. The ambiguity in variant representation can confound annotating and result in errors.
+
+| POS | REF | ALT |
+|-----|-----|-----|
+| 1   | GAC | GA  |
+| 2   | AC  | A   |
+
+The `allele_match` algorithm solves this issue by comparing a variant and a set of queried variants from another VCF using re-constructed local haplotypes.
+This algorithm annotates variants accurately regardless of representation.
 
 Currently, we only support annotating the `AF` (population allele frequency) field, but it's not difficult to support other tags as long as they are provided in the cohort call set.
 
