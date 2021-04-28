@@ -56,7 +56,7 @@ python src/allele_match.py -p cohort.release_missing2ref.no_calls.vcf.gz -v ${VC
 
 After annotating, we can split the VCF file based on an allele frequency cutoff:
 ```
-AF_CUTOFF=0.05 # allele frequency cutoff; we'll only a VCF with AF > `AF_CUTOFF` and a VCF with AF < `AF_CUTOFF`
+AF_CUTOFF=0.05 # allele frequency cutoff; we'll generate a VCF with AF > `AF_CUTOFF` and a VCF with AF <= `AF_CUTOFF`
 VCF_COMMON=<annotated.common.vcf> # path to the output annotated common VCF
 VCF_RARE=<annotated.rare.vcf> # path to the output annotated rare VCF
 
