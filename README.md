@@ -1,5 +1,7 @@
 # Allele match
-
+ Ex
+`allele_match` annotates a VCF with the information in another VCF. 
+Example use case: filling the population allele frequency (`AF`) field in a called variant set using information in a reference panel, such as the 1000 Genomes Project.
 This is a Pysam implementation of the variant allele matching algorithm described in this [preprint](https://doi.org/10.1101/2021.01.06.425550).
 
 A variant can be represented in multiple formats. An example in the table below shows a variant in two forms. The ambiguity in variant representation can confound annotating and result in errors.
@@ -12,7 +14,7 @@ A variant can be represented in multiple formats. An example in the table below 
 The `allele_match` algorithm solves this issue by comparing a variant and a set of queried variants from another VCF using re-constructed local haplotypes.
 This algorithm annotates variants accurately regardless of representation.
 
-Currently, we only support annotating the `AF` (population allele frequency) field, but it's not difficult to support other tags as long as they are provided in the cohort call set.
+Currently, we only support annotating the `AF` (population allele frequency) field, but it's supposedly capable of supporting other tags. Please file an issue or pull request if there's a need.
 
 ## Dependencies
 ### Required
