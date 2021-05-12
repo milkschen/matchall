@@ -1,3 +1,5 @@
+''' Summarize an info field in a VCF as a TSV. '''
+
 import argparse
 import numpy as np
 import pysam

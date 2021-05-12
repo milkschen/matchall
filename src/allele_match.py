@@ -1,3 +1,12 @@
+'''
+Annotate a VCF using info from another VCF.
+
+An haplotype-based matching algorithm is used to match alleles represented in different forms.
+
+Example:
+python allele_match.py -v <target.vcf.gz> -p <panel.vcf.gz> -r <ref.fa> -o <target.annotated.vcf.gz>
+'''
+
 import argparse
 import pysam
 import sys
