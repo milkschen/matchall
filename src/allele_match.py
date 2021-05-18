@@ -1,60 +1,10 @@
 '''
-Annotate a VCF using info from another VCF.
-
-An haplotype-based matching algorithm is used to match alleles represented in different forms.
-
-Example:
-python allele_match.py -v <target.vcf.gz> -p <panel.vcf.gz> -r <ref.fa> -o <target.annotated.vcf.gz>
+An haplotype-based matching algorithm to match alleles even when they are in different forms.
 '''
 
 import argparse
 import pysam
 import sys
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '-v', '--vcf',
-        help='Path to target VCF. [None]'
-    )
-    parser.add_argument(
-        '-p', '--panel',
-        help='Path to the reference panel VCF (TBI or CSI indexes are required). [None]'
-    )
-    parser.add_argument(
-        '-r', '--ref',
-        help='Path to the reference FASTA (FAI index is required). [None]'
-    )
-    # parser.add_argument(
-    #     '--allele-frequency-cutoff', type=float, default=0,
-    #     help= \
-    #         'allele frequency cutoff (set to a non-zero value to activate).\n' +
-    #         'Split output VCFs will be write to ' +
-    #         '`allele-frequency-prefix`-af_gt_`allele-frequency-cutoff`.vcf' +
-    #         'and `allele-frequency-prefix`-af_leq_`allele-frequency-cutoff`.vcf\n' +
-    #         '`allele-frequency-prefix` must be set, too [0]'
-    # )
-    # parser.add_argument(
-    #     '--allele-frequency-prefix', default=None,
-    #     help= \
-    #         'Prefix of output files in the `allele-frequency-cutoff` mode.\n' +
-    #         'See `allele-frequency-cutoff` for more explanation. [None]'
-    # )
-    parser.add_argument(
-        '-o', '--out', default='-',
-        help='Path to output VCF. Set to "-" to print to stdout. ["-"]'
-    )
-    parser.add_argument(
-        '--happy', action='store_true',
-        help='Set for hap.py VCFs. [False]'
-    )
-    parser.add_argument(
-        '--debug', action='store_true',
-        help='Set to print debug messages. [False]'
-    )
-    args = parser.parse_args()
-    return args
 
 
 def match_allele(
@@ -159,7 +109,12 @@ def fetch_nearby_cohort(
             var.info.__setitem__('AF', tuple([0 for i in var.alts]))
             print('Warning: encounter the edge of a contig. Set "AF"=0', file=sys.stderr)
             # raise ValueError("Errors during fetching allele matching sequence in the ref FASTA")
-        f_out.write(match_allele(var, cohort_vars, ref_seq, debug))
+        try:
+            # f_out.write(match_allele(var, cohort_vars, ref_seq, debug))
+            return match_allele(var, cohort_vars, ref_seq, debug)
+        except:
+            print('Warning: unexpected error at allele_match.py:match_allele()')
+            return None
 
 
 def annotate_vcf(
@@ -193,15 +148,65 @@ def annotate_vcf(
     #     f_out_high = pysam.VariantFile(af_prefix+f'-af_gt_{af_cutoff}.vcf', 'w', header=f_vcf.header)
     #     f_out_low = pysam.VariantFile(af_prefix+f'-af_leq_{af_cutoff}.vcf', 'w', header=f_vcf.header)
     
+    def select_variant(var):
+        if happy_vcf and var.info.get('Regions'):
+            # Check variants in confident regions (hap.py specific)
+            return True
+        if not happy_vcf and var.filter.get('PASS'):
+            # Don't check non-PASS variants
+            return True
+        return False
+    
     for var in f_vcf.fetch():
-        if happy_vcf:
-            # Only check variants in confident regions (hap.py specific)
-            if var.info.get('Regions'):
-                fetch_nearby_cohort(var, f_panel, f_fasta, f_out, debug)
-        else:
-            if var.filter.get('PASS'):
-                # Only take 'PASS' variants
-                fetch_nearby_cohort(var, f_panel, f_fasta, f_out, debug)
+        if select_variant(var):
+            annotated_v = fetch_nearby_cohort(var, f_panel, f_fasta, f_out, debug)
+            if annotated_v:
+                f_out.write(annotated_v)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-v', '--vcf',
+        help='Path to target VCF. [None]'
+    )
+    parser.add_argument(
+        '-p', '--panel',
+        help='Path to the reference panel VCF (TBI or CSI indexes are required). [None]'
+    )
+    parser.add_argument(
+        '-r', '--ref',
+        help='Path to the reference FASTA (FAI index is required). [None]'
+    )
+    # parser.add_argument(
+    #     '--allele-frequency-cutoff', type=float, default=0,
+    #     help= \
+    #         'allele frequency cutoff (set to a non-zero value to activate).\n' +
+    #         'Split output VCFs will be write to ' +
+    #         '`allele-frequency-prefix`-af_gt_`allele-frequency-cutoff`.vcf' +
+    #         'and `allele-frequency-prefix`-af_leq_`allele-frequency-cutoff`.vcf\n' +
+    #         '`allele-frequency-prefix` must be set, too [0]'
+    # )
+    # parser.add_argument(
+    #     '--allele-frequency-prefix', default=None,
+    #     help= \
+    #         'Prefix of output files in the `allele-frequency-cutoff` mode.\n' +
+    #         'See `allele-frequency-cutoff` for more explanation. [None]'
+    # )
+    parser.add_argument(
+        '-o', '--out', default='-',
+        help='Path to output VCF. Set to "-" to print to stdout. ["-"]'
+    )
+    parser.add_argument(
+        '--happy', action='store_true',
+        help='Set for hap.py VCFs. [False]'
+    )
+    parser.add_argument(
+        '--debug', action='store_true',
+        help='Set to print debug messages. [False]'
+    )
+    args = parser.parse_args()
+    return args
 
 
 if __name__ == '__main__':
