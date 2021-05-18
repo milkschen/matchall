@@ -1,6 +1,6 @@
 import allele_match
+import os
 import pysam
-# import pytest
 import unittest
 from parameterized import parameterized
 
@@ -100,15 +100,17 @@ class TestAlleleMatch(unittest.TestCase):
             (0,0)
         ]
     ])
-    def test_compare_haplotype(self, var, cohorts, ref, gold):
+    def test_match_allele(self, var, cohorts, ref, gold):
         vcf_header = pysam.VariantHeader()
         vcf_header.contigs.add('chr1')
         vcf_header.add_meta('INFO', items=[('ID','AF'), ('Number','A'), ('Type','Float'), ('Description','Population allele frequency')])
+        # Make the variant record under test
         record = vcf_header.new_record(
             contig=var.contig,
             start=var.start,
             stop=var.stop,
             alleles=var.alleles)
+        # Make cohort variants
         c_records = []
         for cohort in cohorts:
             v = vcf_header.new_record(
@@ -119,11 +121,34 @@ class TestAlleleMatch(unittest.TestCase):
             )
             v.info.__setitem__('AF', cohort.af)
             c_records.append(v)
-        ref=ref
+        ref = ref
         var = allele_match.match_allele(record, c_records, ref)
+        
         for i, a in enumerate(var.info['AF']):
             self.assertAlmostEqual(a, gold[i])
         # self.assertAlmostEqual(var.info['AF'][0], gold)
+
+    def test_fetch_nearby_cohort(self):
+        f_vcf = pysam.VariantFile(os.path.join('test_data', 'HG00733-hifi_deepvariant-chr20_568936_571052.vcf.gz'))
+        f_panel = pysam.VariantFile(os.path.join('test_data', 'chr20_560000_580000.cohort.vcf.gz'))
+        f_fasta = pysam.FastaFile(os.path.join('test_data', 'chr20_1_580000.fa'))
+        # Add the AF field in INFO
+        f_vcf.header.add_meta(
+            'INFO',
+            items=[('ID','AF'), ('Number','A'),
+                   ('Type','Float'), ('Description','Population allele frequency')])
+        gold_af = [0.009784, 0.539137, 0.170927, 0.231030, 
+                   0.231030, 0.184105, 0.224641, 0.485423, 
+                   0.539337, 0.243211]
+        for i, v in enumerate(f_vcf.fetch()):
+            v_af = allele_match.fetch_nearby_cohort(
+                var=v, f_panel=f_panel, f_fasta=f_fasta)
+            
+            # The info['AF'] query returns a tuple
+            # Here all tuples are unit-length
+            af = v_af.info['AF'][0]
+            self.assertAlmostEqual(af, gold_af[i], places=6)
+
 
 if __name__ == '__main__':
     unittest.main()
