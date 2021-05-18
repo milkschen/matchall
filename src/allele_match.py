@@ -1,8 +1,6 @@
 '''
 An haplotype-based matching algorithm to match alleles even when they are in different forms.
 '''
-
-import argparse
 import pysam
 import sys
 
@@ -22,15 +20,16 @@ def match_allele(
         - ValueError: If "AF" is not found in cohort variants.
     '''
     if debug:
-        print('var')
-        print(var)
-        print(var.start, var.stop, var.alleles, var.alts)
+        print(f'var = {var}'.rstrip())
+        print(f'    start={var.start}')
+        print(f'    stop={var.stop}')
+        print(f'    alleles={var.alleles}')
+        print(f'    alts={var.alts}')
         print('cohorts')
         for c in cohort_vars:
-            print(c)
-            print(c.start, c.stop, c.alleles)
-        print('ref')
-        print(ref)
+            print(f'{c}'.rstrip())
+            print('   ', c.start, c.stop, c.alleles)
+        print('ref =', ref)
     start = min(var.start, min([v.start for v in cohort_vars]))
 
     # dict_alt_af:
@@ -64,16 +63,14 @@ def fetch_nearby_cohort(
     var: pysam.VariantRecord,
     f_panel: pysam.VariantFile,
     f_fasta: pysam.FastaFile,
-    f_out: pysam.VariantFile,
     debug: bool=False
-    ) -> None:
+    ) -> pysam.VariantRecord:
     ''' Fetch nearby cohorts and local REF haplotype for a variant.
 
     Inputs:
         - var: Target variant.
         - f_panel: Cohort VCF file.
         - f_fasta: REF FASTA file.
-        - f_out: Output VCF file.
     Raises:
         - ValueError: If fetched variants don't share the same contig.
     '''
@@ -85,145 +82,34 @@ def fetch_nearby_cohort(
     cohort_vars = list(f_panel.fetch(
         var.contig, var.start, var_maxstop))
 
+    # If cannot find matched cohorts, set AF to 0
     if len(cohort_vars) == 0:
-        # If cannot find matched cohorts, set AF to 0
         var.info.__setitem__('AF', tuple([0 for i in var.alts]))
-        f_out.write(var)
-    else:
-        cohort_start = min(var.start, min([v.start for v in cohort_vars]))
-        cohort_maxstop = var_maxstop
-        for v in cohort_vars:
-            cohort_maxstop = max(cohort_maxstop,
-                                 max([v.start + len(a) for a in v.alleles]))
-
-        if not all([v.contig == var.contig for v in cohort_vars]):
-            # All variants should have the same contig
-            raise ValueError(
-                "Fetched variants have disconcordant contigs: ",
-                [v.contig for v in cohort_vars])
-        # Fetch reference sequence
-        try:
-            ref_seq = f_fasta.fetch(
-                reference=var.contig, start=cohort_start, end=cohort_maxstop)
-        except:
-            var.info.__setitem__('AF', tuple([0 for i in var.alts]))
-            print('Warning: encounter the edge of a contig. Set "AF"=0', file=sys.stderr)
-            # raise ValueError("Errors during fetching allele matching sequence in the ref FASTA")
-        try:
-            # f_out.write(match_allele(var, cohort_vars, ref_seq, debug))
-            return match_allele(var, cohort_vars, ref_seq, debug)
-        except:
-            print('Warning: unexpected error at allele_match.py:match_allele()')
-            return None
-
-
-def annotate_vcf(
-    fn_vcf: str, fn_panel_vcf: str, fn_fasta: str, fn_out: str, happy_vcf: bool, debug: bool=False
-    # af_cutoff: float=0, af_prefix: str=None
-    ) -> None:
-    try:
-        f_vcf = pysam.VariantFile(fn_vcf)
-        f_vcf.header.add_meta(
-            'INFO',
-            items=[('ID','AF'), ('Number','A'),
-                   ('Type','Float'), ('Description','Population allele frequency')])
-    except:
-        raise ValueError(f'Error: Cannot open "{fn_vcf}"')
-    try:
-        f_panel = pysam.VariantFile(fn_panel_vcf)
-    except:
-        raise ValueError(f'Error: Cannot open "{fn_panel_vcf}"')
-    try:
-        f_fasta = pysam.FastaFile(fn_fasta)
-    except:
-        raise ValueError(f'Error: Cannot open "{fn_fasta}"')
-    try:
-        f_out = pysam.VariantFile(fn_out, 'w', header=f_vcf.header)
-    except:
-        raise ValueError(f'Error: Cannot create "{fn_out}"')
-
-    # if af_cutoff > 0 and af_prefix == None:
-    #     raise ValueError(f'Error: `allele-frequency-prefix` needs to be set when `allele-frequency-cutoff` > 0')
-    # elif af_cutoff > 0:
-    #     f_out_high = pysam.VariantFile(af_prefix+f'-af_gt_{af_cutoff}.vcf', 'w', header=f_vcf.header)
-    #     f_out_low = pysam.VariantFile(af_prefix+f'-af_leq_{af_cutoff}.vcf', 'w', header=f_vcf.header)
+        return var
     
-    def select_variant(var):
-        if happy_vcf and var.info.get('Regions'):
-            # Check variants in confident regions (hap.py specific)
-            return True
-        if not happy_vcf and var.filter.get('PASS'):
-            # Don't check non-PASS variants
-            return True
-        return False
+    cohort_start = min(var.start, min([v.start for v in cohort_vars]))
+    cohort_maxstop = var_maxstop
+    for v in cohort_vars:
+        cohort_maxstop = max(cohort_maxstop,
+                                max([v.start + len(a) for a in v.alleles]))
+
+    if not all([v.contig == var.contig for v in cohort_vars]):
+        # All variants should have the same contig
+        raise ValueError(
+            "Fetched variants have disconcordant contigs: ",
+            [v.contig for v in cohort_vars])
     
-    for var in f_vcf.fetch():
-        if select_variant(var):
-            annotated_v = fetch_nearby_cohort(var, f_panel, f_fasta, f_out, debug)
-            if annotated_v:
-                f_out.write(annotated_v)
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '-v', '--vcf',
-        help='Path to target VCF. [None]'
-    )
-    parser.add_argument(
-        '-p', '--panel',
-        help='Path to the reference panel VCF (TBI or CSI indexes are required). [None]'
-    )
-    parser.add_argument(
-        '-r', '--ref',
-        help='Path to the reference FASTA (FAI index is required). [None]'
-    )
-    # parser.add_argument(
-    #     '--allele-frequency-cutoff', type=float, default=0,
-    #     help= \
-    #         'allele frequency cutoff (set to a non-zero value to activate).\n' +
-    #         'Split output VCFs will be write to ' +
-    #         '`allele-frequency-prefix`-af_gt_`allele-frequency-cutoff`.vcf' +
-    #         'and `allele-frequency-prefix`-af_leq_`allele-frequency-cutoff`.vcf\n' +
-    #         '`allele-frequency-prefix` must be set, too [0]'
-    # )
-    # parser.add_argument(
-    #     '--allele-frequency-prefix', default=None,
-    #     help= \
-    #         'Prefix of output files in the `allele-frequency-cutoff` mode.\n' +
-    #         'See `allele-frequency-cutoff` for more explanation. [None]'
-    # )
-    parser.add_argument(
-        '-o', '--out', default='-',
-        help='Path to output VCF. Set to "-" to print to stdout. ["-"]'
-    )
-    parser.add_argument(
-        '--happy', action='store_true',
-        help='Set for hap.py VCFs. [False]'
-    )
-    parser.add_argument(
-        '--debug', action='store_true',
-        help='Set to print debug messages. [False]'
-    )
-    args = parser.parse_args()
-    return args
-
-
-if __name__ == '__main__':
-    # We use python3.6 because we require dict is ordered.
-    MIN_PYTHON = (3, 6)
-    if sys.version_info < MIN_PYTHON:
-        sys.exit('Python %s.%s or later is required.\n' % MIN_PYTHON)
-
-    args = parse_args()
-
-    annotate_vcf(
-        fn_vcf=args.vcf,
-        fn_panel_vcf=args.panel,
-        fn_fasta=args.ref,
-        fn_out=args.out,
-        happy_vcf=args.happy,
-        debug=args.debug
-        # af_cutoff=args.allele_frequency_cutoff,
-        # af_prefix=args.allele_frequency_prefix
-    )
+    # Fetch reference sequence
+    try:
+        ref_seq = f_fasta.fetch(
+            reference=var.contig, start=cohort_start, end=cohort_maxstop)
+    except:
+        var.info.__setitem__('AF', tuple([0 for i in var.alts]))
+        print('Warning: encounter the edge of a contig. Set "AF"=0', file=sys.stderr)
+        # raise ValueError("Errors during fetching allele matching sequence in the ref FASTA")
+    
+    try:
+        return match_allele(var, cohort_vars, ref_seq, debug)
+    except:
+        print('Warning: unexpected error at allele_match.py:match_allele()')
+        return None

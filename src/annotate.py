@@ -100,7 +100,7 @@ def annotate_vcf(
     
     for var in f_vcf.fetch():
         if select_variant(var):
-            annotated_v = allele_match.fetch_nearby_cohort(var, f_panel, f_fasta, f_out, debug)
+            annotated_v = allele_match.fetch_nearby_cohort(var, f_panel, f_fasta, debug)
             if annotated_v:
                 f_out.write(annotated_v)
 
