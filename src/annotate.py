@@ -77,33 +77,29 @@ def annotate_vcf(
     # af_cutoff: float=0, af_prefix: str=None
     ) -> None:
     # Open panel VCF. Searching for `info_tag` in the header
-    info_items = None
+    info = None
     try:
         f_panel = pysam.VariantFile(fn_panel_vcf)
         for r in f_panel.header.records:
             if r.type == 'INFO':
                 if r.get('ID') == info_tag:
-                    info_items = r.items()
+                    # info = r.items()
+                    info = dict(r)
                     break    
     except:
         raise ValueError(f'Error: Cannot open "{fn_panel_vcf}"')
 
     # If info_tag cannot be found, exit program
-    if info_items is None:
+    if info is None:
         print(f'Error: info-tag "{info_tag}" cannot be found in f{fn_panel_vcf}. Exit.')
         exit(1)
-    
-    # Remove the tuple with key `IDX`
-    for i, t in enumerate(info_items):
-        if t[0] == 'IDX':
-            info_items.pop(i)
-        elif t[0] == 'Description':
-            t1 = t[1].replace('"', '')
-            info_items[i] = (t[0], t1)
+    info.pop('IDX', None)
+    info['Description'] = info['Description'].replace('"', '')
+    print(info)
     
     try:
         f_vcf = pysam.VariantFile(fn_vcf)
-        f_vcf.header.add_meta('INFO', items = info_items)
+        f_vcf.header.add_meta('INFO', items = info.items())
     except:
         raise ValueError(f'Error: Cannot open "{fn_vcf}"')
     try:
@@ -134,7 +130,10 @@ def annotate_vcf(
         if select_variant(var):
             annotated_v = allele_match.fetch_nearby_cohort(
                 var=var, f_panel=f_panel,
-                f_fasta=f_fasta, info_tag=info_tag, debug=debug)
+                f_fasta=f_fasta, 
+                info=info,
+                # info_tag=info_tag, 
+                debug=debug)
             if annotated_v:
                 f_out.write(annotated_v)
 
@@ -153,7 +152,6 @@ if __name__ == '__main__':
         fn_fasta=args.ref,
         fn_out=args.out,
         info_tag=args.info,
-        # info_description=args.info_description,
         happy_vcf=args.happy,
         debug=args.debug
         # af_cutoff=args.allele_frequency_cutoff,
