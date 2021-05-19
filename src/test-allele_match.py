@@ -122,7 +122,9 @@ class TestAlleleMatch(unittest.TestCase):
             v.info.__setitem__('AF', cohort.af)
             c_records.append(v)
         ref = ref
-        var = allele_match.match_allele(record, c_records, ref)
+        var = allele_match.match_allele(
+            var=record, cohort_vars=c_records,
+            ref=ref, info_tag='AF')
         
         for i, a in enumerate(var.info['AF']):
             self.assertAlmostEqual(a, gold[i])
@@ -142,7 +144,8 @@ class TestAlleleMatch(unittest.TestCase):
                    0.539337, 0.243211]
         for i, v in enumerate(f_vcf.fetch()):
             v_af = allele_match.fetch_nearby_cohort(
-                var=v, f_panel=f_panel, f_fasta=f_fasta)
+                var=v, f_panel=f_panel,
+                f_fasta=f_fasta, info_tag='AF')
             
             # The info['AF'] query returns a tuple
             # Here all tuples are unit-length

@@ -6,16 +6,24 @@ import sys
 
 
 def match_allele(
-    var: pysam.VariantRecord, cohort_vars: list, ref: str, debug: bool=False
+    var: pysam.VariantRecord,
+    cohort_vars: list,
+    ref: str,
+    info_tag: str,
+    debug: bool=False
     ) -> pysam.VariantRecord:
-    ''' Match a variant with nearby cohorts using local haplotypes.
+    ''' 
+    Match a variant with nearby cohorts using local haplotypes.
 
     Inputs:
         - var: Target variant.
         - cohort_vars: list of pysam.VariantRecord. Fetched nearby cohorts.
         - ref: Local REF haplotype
+        - info_tag: the INFO field to query
+
     Returns:
         - var: Target variant with annotation.
+    
     Raises:
         - ValueError: If "AF" is not found in cohort variants.
     '''
@@ -46,15 +54,15 @@ def match_allele(
             c_var_seq = ref[:c_var.start-start] + alt + ref[c_var.stop-start:]
             if c_var_seq in dict_alt_af:
                 try:
-                    dict_alt_af[c_var_seq] = c_var.info['AF'][i]
+                    dict_alt_af[c_var_seq] = c_var.info[info_tag][i]
                 except:
-                    raise ValueError('Error: "AF" field is not provided in a cohort variant')
+                    raise ValueError(f'Error: INFO."{info_tag}" is not provided in the fetched cohort variant')
 
     if len(dict_alt_af.keys()) != len(var.alts):
         # Rare weird cases where both alts are the same
-        var.info.__setitem__('AF', tuple([list(dict_alt_af.values())[0] for i in var.alts]))
+        var.info.__setitem__(info_tag, tuple([list(dict_alt_af.values())[0] for _ in var.alts]))
     else:
-        var.info.__setitem__('AF', tuple(dict_alt_af.values()))
+        var.info.__setitem__(info_tag, tuple(dict_alt_af.values()))
     
     return var
 
@@ -63,6 +71,7 @@ def fetch_nearby_cohort(
     var: pysam.VariantRecord,
     f_panel: pysam.VariantFile,
     f_fasta: pysam.FastaFile,
+    info_tag: str,
     debug: bool=False
     ) -> pysam.VariantRecord:
     ''' Fetch nearby cohorts and local REF haplotype for a variant.
@@ -84,7 +93,7 @@ def fetch_nearby_cohort(
 
     # If cannot find matched cohorts, set AF to 0
     if len(cohort_vars) == 0:
-        var.info.__setitem__('AF', tuple([0 for i in var.alts]))
+        var.info.__setitem__(info_tag, tuple([0 for i in var.alts]))
         return var
     
     cohort_start = min(var.start, min([v.start for v in cohort_vars]))
@@ -104,12 +113,14 @@ def fetch_nearby_cohort(
         ref_seq = f_fasta.fetch(
             reference=var.contig, start=cohort_start, end=cohort_maxstop)
     except:
-        var.info.__setitem__('AF', tuple([0 for i in var.alts]))
-        print('Warning: encounter the edge of a contig. Set "AF"=0', file=sys.stderr)
+        var.info.__setitem__(info_tag, tuple([0 for i in var.alts]))
+        print(f'Warning: encounter the edge of a contig. Set "{info_tag}"=0', file=sys.stderr)
         # raise ValueError("Errors during fetching allele matching sequence in the ref FASTA")
     
     try:
-        return match_allele(var, cohort_vars, ref_seq, debug)
+        return match_allele(
+            var=var, cohort_vars=cohort_vars, 
+            ref=ref_seq, info_tag=info_tag, debug=debug)
     except:
         print('Warning: unexpected error at allele_match.py:match_allele()')
         return None

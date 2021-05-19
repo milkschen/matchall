@@ -27,6 +27,14 @@ def parse_args():
         '-r', '--ref',
         help='Path to the reference FASTA (FAI index is required). [None]'
     )
+    parser.add_argument(
+        '--info', default='AF',
+        help='INFO tag to query. ["AF"]'
+    )
+    # parser.add_argument(
+    #     '--info-description', default='Population allele frequency',
+    #     help='Description of the INFO tag to query. ["Population allele frequency"]'
+    # )
     # parser.add_argument(
     #     '--allele-frequency-cutoff', type=float, default=0,
     #     help= \
@@ -59,21 +67,45 @@ def parse_args():
 
 
 def annotate_vcf(
-    fn_vcf: str, fn_panel_vcf: str, fn_fasta: str, fn_out: str, happy_vcf: bool, debug: bool=False
+    fn_vcf: str,
+    fn_panel_vcf: str,
+    fn_fasta: str,
+    fn_out: str,
+    info_tag: str,
+    happy_vcf: bool,
+    debug: bool=False
     # af_cutoff: float=0, af_prefix: str=None
     ) -> None:
-    try:
-        f_vcf = pysam.VariantFile(fn_vcf)
-        f_vcf.header.add_meta(
-            'INFO',
-            items=[('ID','AF'), ('Number','A'),
-                   ('Type','Float'), ('Description','Population allele frequency')])
-    except:
-        raise ValueError(f'Error: Cannot open "{fn_vcf}"')
+    # Open panel VCF. Searching for `info_tag` in the header
+    info_items = None
     try:
         f_panel = pysam.VariantFile(fn_panel_vcf)
+        for r in f_panel.header.records:
+            if r.type == 'INFO':
+                if r.get('ID') == info_tag:
+                    info_items = r.items()
+                    break    
     except:
         raise ValueError(f'Error: Cannot open "{fn_panel_vcf}"')
+
+    # If info_tag cannot be found, exit program
+    if info_items is None:
+        print(f'Error: info-tag "{info_tag}" cannot be found in f{fn_panel_vcf}. Exit.')
+        exit(1)
+    
+    # Remove the tuple with key `IDX`
+    for i, t in enumerate(info_items):
+        if t[0] == 'IDX':
+            info_items.pop(i)
+        elif t[0] == 'Description':
+            t1 = t[1].replace('"', '')
+            info_items[i] = (t[0], t1)
+    
+    try:
+        f_vcf = pysam.VariantFile(fn_vcf)
+        f_vcf.header.add_meta('INFO', items = info_items)
+    except:
+        raise ValueError(f'Error: Cannot open "{fn_vcf}"')
     try:
         f_fasta = pysam.FastaFile(fn_fasta)
     except:
@@ -100,7 +132,9 @@ def annotate_vcf(
     
     for var in f_vcf.fetch():
         if select_variant(var):
-            annotated_v = allele_match.fetch_nearby_cohort(var, f_panel, f_fasta, debug)
+            annotated_v = allele_match.fetch_nearby_cohort(
+                var=var, f_panel=f_panel,
+                f_fasta=f_fasta, info_tag=info_tag, debug=debug)
             if annotated_v:
                 f_out.write(annotated_v)
 
@@ -118,6 +152,8 @@ if __name__ == '__main__':
         fn_panel_vcf=args.panel,
         fn_fasta=args.ref,
         fn_out=args.out,
+        info_tag=args.info,
+        # info_description=args.info_description,
         happy_vcf=args.happy,
         debug=args.debug
         # af_cutoff=args.allele_frequency_cutoff,
