@@ -75,6 +75,7 @@ def match_allele(
     for i, alt in enumerate(var.alts):
         var_seq = ref[:var.start-start] + alt + ref[var.stop-start:]
         dict_hap_info[var_seq] = 0
+        # dict_hap_info[var_seq] = 
 
     # Loop through matched cohort variants
     for c_var in cohort_vars:
@@ -90,19 +91,35 @@ def match_allele(
                         dict_hap_info[c_var_seq] = c_var.info[query_info['ID']]
                     else:
                         dict_hap_info[c_var_seq] = c_var.info[query_info['ID']][i]
-                except:
-                    raise ValueError(f'Error: INFO."{query_info["ID"]}" is in the fetched cohort variant')
+                except Exception as e:
+                    raise e
+                    # raise ValueError(f'Error: INFO."{query_info["ID"]}" is in the fetched cohort variant')
     
     try:
         if update_info_num in ['0', '1']:
-            var.info.__setitem__(update_info['ID'], tuple(dict_hap_info.values())[0])
+            # Take the max if there are multiple matching results
+            # Examlple scenarios:
+            #   One of the two alt alleles matches the query VCF.
+            #   Using `max` will result in a "matched" annotation
+            var.info.__setitem__(
+                update_info['ID'],
+                max(tuple(dict_hap_info.values())))
         # Rare weird cases where both alts are the same
         elif len(dict_hap_info.keys()) != len(var.alts):
-            var.info.__setitem__(update_info['ID'], tuple([list(dict_hap_info.values())[0] for _ in var.alts]))
+            var.info.__setitem__(
+                update_info['ID'],
+                tuple([list(dict_hap_info.values())[0] for _ in var.alts]))
         else:
-            var.info.__setitem__(update_info['ID'], tuple(dict_hap_info.values()))
-    except:
-        raise ValueError(f'Error: VariantRecord.__setitem__ failed')
+            var.info.__setitem__(
+                update_info['ID'],
+                tuple(dict_hap_info.values()))
+    except Exception as e:
+        # print(var)
+        # print(dict_hap_info)
+        # print(max(tuple(dict_hap_info.values())))
+        # print(len(dict_hap_info.keys()), len(var.alts))
+        # print(update_info_num)
+        raise e
     
     return var
 

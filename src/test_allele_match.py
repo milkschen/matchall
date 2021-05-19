@@ -26,7 +26,8 @@ class TestAlleleMatch(unittest.TestCase):
         pass
     
     @parameterized.expand([
-        [ # bi-allelic var, one cohort
+        [ 
+            'bi-allelic var, one cohort',
             PysamVariant(
                 start=19003, stop=19004, alleles=('A', 'G')
             ),
@@ -39,7 +40,8 @@ class TestAlleleMatch(unittest.TestCase):
             'A',
             (0.401558,)
         ],
-        [ # bi-allelic var, two cohorts
+        [ 
+            'bi-allelic var, two cohorts',
             PysamVariant(
                 start=20093, stop=20096, alleles=('TAA', 'T')
             ),
@@ -56,7 +58,8 @@ class TestAlleleMatch(unittest.TestCase):
             'TAC',
             (0.0455272,)
         ],
-        [ # tri-allelic var, multiple cohorts
+        [ 
+            'tri-allelic var, multiple cohorts',
             PysamVariant(
                 start=181582, stop=181587, alleles=('CGGGG', 'C', 'CG')
             ),
@@ -73,7 +76,8 @@ class TestAlleleMatch(unittest.TestCase):
             'CGGGGGGGGG',
             (0.333866, 0.113818)
         ],
-        [ # bi-allelic var, a complex cohort
+        [ 
+            'bi-allelic var, a complex cohort',
             PysamVariant(
                 start=893788, stop=893825, alleles=('AAAAAAAAAAAAAATATATATATATATATATATATAT', 'A'),
             ),
@@ -86,7 +90,8 @@ class TestAlleleMatch(unittest.TestCase):
             'AAAAAAAAAAAAAAAATATATATATATATATATATATATATATA',
             (0.734225,)
         ],
-        [ # a special case I only see from the octopus variant caller
+        [ 
+            'a special case I only see from the octopus variant caller',
             PysamVariant(
                 start=143327539, stop=143327543, alleles=('CACA', '*', '*')
             ),
@@ -100,7 +105,8 @@ class TestAlleleMatch(unittest.TestCase):
             (0,0)
         ]
     ])
-    def test_match_allele_af(self, var, cohorts, ref, gold):
+    def test_match_allele_af(
+        self, description, var, cohorts, ref, gold):
         vcf_header = pysam.VariantHeader()
         vcf_header.contigs.add('chr1')
         info = {'ID': 'AF', 'Number': 'A', 'Type': 'Float', 'Description': 'Population allele frequency'}
@@ -131,7 +137,8 @@ class TestAlleleMatch(unittest.TestCase):
             self.assertAlmostEqual(a, gold[i])
 
     @parameterized.expand([
-        [ # bi-allelic var, matched
+        [ 
+            'bi-allelic var, matched',
             PysamVariant(
                 start=19003, stop=19005, alleles=('AA', 'AG')
             ),
@@ -141,9 +148,10 @@ class TestAlleleMatch(unittest.TestCase):
                 )
             ],
             'AA',
-            1
+            (1,)
         ],
-        [ # bi-allelic var, unmatched
+        [   
+            'bi-allelic var, unmatched',
             PysamVariant(
                 start=19003, stop=19005, alleles=('AA', 'AG')
             ),
@@ -153,13 +161,28 @@ class TestAlleleMatch(unittest.TestCase):
                 )
             ],
             'AA',
-            0
+            (0,)
+        ],
+        [ 
+            'one allele is matched in a multi-allelic site',
+            PysamVariant(
+                start=6540123, stop=6540132, alleles=('C', 'CTTTTT', 'CTTTTTTTT')
+            ),
+            [
+                PysamVariant(
+                    start=6540123, stop=6540132, alleles=('C', 'CTTTTTTTT')
+                )
+            ],
+            'CTTTTTTTT',
+            (0, 1)
         ]
     ])
-    def test_match_allele_match(self, var, cohorts, ref, gold):
+    def test_match_allele_match(
+        self, description, var, cohorts, ref, gold):
         vcf_header = pysam.VariantHeader()
         vcf_header.contigs.add('chr1')
-        info = {'ID': 'MATCH', 'Number': '1', 'Type': 'Integer', 'Description': 'If genotype is matched with a query'}
+        info = {'ID': 'MATCH', 'Number': 'A', 'Type': 'Integer', 'Description': 'If genotype is matched with a query'}
+        # info = {'ID': 'MATCH', 'Number': '1', 'Type': 'Integer', 'Description': 'If genotype is matched with a query'}
         vcf_header.add_meta('INFO', items=info.items())
         # Make the variant record under test
         record = vcf_header.new_record(
@@ -183,7 +206,9 @@ class TestAlleleMatch(unittest.TestCase):
             var=record, cohort_vars=c_records,
             ref=ref, update_info=info, query_info=None)
         
-        self.assertAlmostEqual(var.info['MATCH'], gold)
+        for i, a in enumerate(var.info['MATCH']):
+            self.assertAlmostEqual(a, gold[i])
+        # self.assertAlmostEqual(var.info['MATCH'], gold)
 
     @parameterized.expand([
         [ # AF, Number='A'
