@@ -125,11 +125,65 @@ class TestAlleleMatch(unittest.TestCase):
         ref = ref
         var = allele_match.match_allele(
             var=record, cohort_vars=c_records,
-            ref=ref, info=info)
+            ref=ref, update_info=info, query_info=info)
         
         for i, a in enumerate(var.info['AF']):
             self.assertAlmostEqual(a, gold[i])
-        # self.assertAlmostEqual(var.info['AF'][0], gold)
+
+    @parameterized.expand([
+        [ # bi-allelic var, matched
+            PysamVariant(
+                start=19003, stop=19005, alleles=('AA', 'AG')
+            ),
+            [
+                PysamVariant(
+                    start=19004, stop=19005, alleles=('A', 'G')
+                )
+            ],
+            'AA',
+            1
+        ],
+        [ # bi-allelic var, unmatched
+            PysamVariant(
+                start=19003, stop=19005, alleles=('AA', 'AG')
+            ),
+            [
+                PysamVariant(
+                    start=19003, stop=19004, alleles=('A', 'G')
+                )
+            ],
+            'AA',
+            0
+        ]
+    ])
+    def test_match_allele_match(self, var, cohorts, ref, gold):
+        vcf_header = pysam.VariantHeader()
+        vcf_header.contigs.add('chr1')
+        info = {'ID': 'MATCH', 'Number': '1', 'Type': 'Integer', 'Description': 'If genotype is matched with a query'}
+        vcf_header.add_meta('INFO', items=info.items())
+        # Make the variant record under test
+        record = vcf_header.new_record(
+            contig=var.contig,
+            start=var.start,
+            stop=var.stop,
+            alleles=var.alleles)
+        # Make cohort variants
+        c_records = []
+        for cohort in cohorts:
+            v = vcf_header.new_record(
+                contig = cohort.contig,
+                start = cohort.start,
+                stop = cohort.stop,
+                alleles = cohort.alleles
+            )
+            # v.info.__setitem__('AF', cohort.af)
+            c_records.append(v)
+        ref = ref
+        var = allele_match.match_allele(
+            var=record, cohort_vars=c_records,
+            ref=ref, update_info=info, query_info=None)
+        
+        self.assertAlmostEqual(var.info['MATCH'], gold)
 
     @parameterized.expand([
         [ # AF, Number='A'
@@ -151,7 +205,7 @@ class TestAlleleMatch(unittest.TestCase):
         for i, v in enumerate(f_vcf.fetch()):
             v_result = allele_match.fetch_nearby_cohort(
                 var=v, f_query_vcf=f_query_vcf,
-                f_fasta=f_fasta, info=info)
+                f_fasta=f_fasta, update_info=info, query_info=info)
             
             # Number of values = number of alt alleles
             # Here all tuples are unit-length

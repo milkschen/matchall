@@ -36,5 +36,24 @@ class TestAnnotate(unittest.TestCase):
         self.assertEqual(stdout, gold)
 
 
+class TestMatch(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.fn_vcf = os.path.join('test_data', 'HG002-chr1_870000_875000.vcf.gz')
+        cls.fn_query_vcf = os.path.join('test_data', 'HG002-major-chr1_870000_875000.vcf.gz')
+        cls.fn_fasta = os.path.join('test_data', 'chr1_1_880000.fa')
+        cls.fn_gold = os.path.join('test_data', 'gold-HG002-chr1_870000_875000.vcf')
+
+    def test_match(self):
+        cmd = f'python src/set_operation.py -r {self.fn_fasta} -v {self.fn_vcf} -q {self.fn_query_vcf} | bcftools view -H'
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+        stdout, stderr = process.communicate()
+        gold = b''
+        with open(self.fn_gold, 'rb') as f_gold:
+            for line in f_gold:
+                gold += line
+        self.assertEqual(stdout, gold)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -129,7 +129,8 @@ def annotate_vcf(
             annotated_v = allele_match.fetch_nearby_cohort(
                 var=var, f_query_vcf=f_query_vcf,
                 f_fasta=f_fasta, 
-                info=info,
+                update_info=info,
+                query_info=info,
                 debug=debug)
             if annotated_v:
                 f_out.write(annotated_v)

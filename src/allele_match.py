@@ -26,7 +26,8 @@ def match_allele(
     var: pysam.VariantRecord,
     cohort_vars: list,
     ref: str,
-    info: dict,
+    update_info: dict,
+    query_info: dict=None,
     debug: bool=False
     ) -> pysam.VariantRecord:
     ''' 
@@ -36,17 +37,18 @@ def match_allele(
         - var: Target variant.
         - cohort_vars: list of pysam.VariantRecord. Fetched nearby cohorts.
         - ref: Local REF haplotype
-        - info: VCF INFO field. 'ID', 'Number', 'Type' are required.
+        - update_info: VCF INFO field to update. 'ID', 'Number', 'Type' are required.
             E.g.
             {'ID': 'AF', 'Number': 'A', 'Type': 'Float', 'Description': 'Allele Frequency estimate for each alternate allele'}
+        - query_info: VCF INFO field to query. If not set, use `update_info`.
 
     Returns:
         - var: Target variant with annotation.
     
     Raises:
         - ValueError: 
-            * If `info_tag` is not found in cohort variants
-            * If __setitem__ fails
+            * If query_info['ID'] is not found in a queried variant
+            * If pysam.VariantRecord.__setitem__() fails
     '''
     if debug:
         print(f'var = {var}'.rstrip())
@@ -61,14 +63,18 @@ def match_allele(
         print('ref =', ref)
     start = min(var.start, min([v.start for v in cohort_vars]))
     
-    info_num = info['Number']
-    # dict_alt_info:
+    # if not query_info:
+    #     query_info = update_info
+    update_info_num = update_info['Number']
+    if query_info:
+        query_info_num = query_info['Number']
+    # dict_hap_info:
     #   - key: local haplotype
-    #   - value: queried `info_tag` value
-    dict_alt_info = {}
+    #   - value: queried info value
+    dict_hap_info = {}
     for i, alt in enumerate(var.alts):
         var_seq = ref[:var.start-start] + alt + ref[var.stop-start:]
-        dict_alt_info[var_seq] = 0
+        dict_hap_info[var_seq] = 0
 
     # Loop through matched cohort variants
     for c_var in cohort_vars:
@@ -76,23 +82,25 @@ def match_allele(
         # Loop through each allele (index=`i`) in a cohort variant
         for i, alt in enumerate(c_var.alts):
             c_var_seq = ref[:c_var.start-start] + alt + ref[c_var.stop-start:]
-            if c_var_seq in dict_alt_info:
+            if c_var_seq in dict_hap_info:
                 try:
-                    if info_num in ['0', '1']:
-                        dict_alt_info[c_var_seq] = c_var.info[info['ID']]
+                    if not query_info:
+                        dict_hap_info[c_var_seq] = 1
+                    elif query_info_num in ['0', '1']:
+                        dict_hap_info[c_var_seq] = c_var.info[query_info['ID']]
                     else:
-                        dict_alt_info[c_var_seq] = c_var.info[info['ID']][i]
+                        dict_hap_info[c_var_seq] = c_var.info[query_info['ID']][i]
                 except:
-                    raise ValueError(f'Error: INFO."{info["ID"]}" is not provided in the fetched cohort variant')
+                    raise ValueError(f'Error: INFO."{query_info["ID"]}" is in the fetched cohort variant')
     
     try:
-        if info_num in ['0', '1']:
-            var.info.__setitem__(info['ID'], tuple(dict_alt_info.values())[0])
+        if update_info_num in ['0', '1']:
+            var.info.__setitem__(update_info['ID'], tuple(dict_hap_info.values())[0])
         # Rare weird cases where both alts are the same
-        elif len(dict_alt_info.keys()) != len(var.alts):
-            var.info.__setitem__(info['ID'], tuple([list(dict_alt_info.values())[0] for _ in var.alts]))
+        elif len(dict_hap_info.keys()) != len(var.alts):
+            var.info.__setitem__(update_info['ID'], tuple([list(dict_hap_info.values())[0] for _ in var.alts]))
         else:
-            var.info.__setitem__(info['ID'], tuple(dict_alt_info.values()))
+            var.info.__setitem__(update_info['ID'], tuple(dict_hap_info.values()))
     except:
         raise ValueError(f'Error: VariantRecord.__setitem__ failed')
     
@@ -103,7 +111,8 @@ def fetch_nearby_cohort(
     var: pysam.VariantRecord,
     f_query_vcf: pysam.VariantFile,
     f_fasta: pysam.FastaFile,
-    info: dict,
+    update_info: dict,
+    query_info: dict=None,
     debug: bool=False
     ) -> pysam.VariantRecord:
     ''' Fetch nearby cohorts and local REF haplotype for a variant.
@@ -112,9 +121,10 @@ def fetch_nearby_cohort(
         - var: Target variant.
         - f_query_vcf: Queried VCF file (e.g. a cohort VCF).
         - f_fasta: REF FASTA file.
-        - info: VCF INFO field. 'ID', 'Number', 'Type' are required.
+        - update_info: VCF INFO field to update. 'ID', 'Number', 'Type' are required.
             E.g.
             {'ID': 'AF', 'Number': 'A', 'Type': 'Float', 'Description': 'Allele Frequency estimate for each alternate allele'}
+        - query_info: VCF INFO field to query. If not set, use `update_info`.
 
     Raises:
         - ValueError: If fetched variants don't share the same contig.
@@ -129,7 +139,7 @@ def fetch_nearby_cohort(
 
     # If cannot find matched cohorts, set AF to 0
     if len(cohort_vars) == 0:
-        update_info_empty(var, info)
+        update_info_empty(var, update_info)
         return var
     
     cohort_start = min(var.start, min([v.start for v in cohort_vars]))
@@ -149,15 +159,16 @@ def fetch_nearby_cohort(
         ref_seq = f_fasta.fetch(
             reference=var.contig, start=cohort_start, end=cohort_maxstop)
     except:
-        update_info_empty(var, info)
-        print(f'Warning: encounter the edge of a contig. Set "{info["ID"]}" as the init value.', file=sys.stderr)
+        update_info_empty(var, update_info)
+        print(f'Warning: encounter the edge of a contig. Set "{update_info["ID"]}" as the init value.', file=sys.stderr)
     
     try:
         return match_allele(
             var=var, cohort_vars=cohort_vars, 
             ref=ref_seq, 
-            info=info,
+            update_info=update_info,
+            query_info=query_info,
             debug=debug)
-    except:
-        print('Warning: unexpected error at allele_match.py:match_allele()')
+    except Exception as e:
+        print(f'Error: {e}')
         return None
