@@ -17,15 +17,15 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-v', '--vcf',
-        help='Path to target VCF. [None]'
+        help='Path to target VCF. [required]'
     )
     parser.add_argument(
-        '-p', '--panel',
-        help='Path to the reference panel VCF (TBI or CSI indexes are required). [None]'
+        '-q', '--query-vcf', required=True,
+        help='Path to query VCF (TBI or CSI indexes are required). This can be a reference panel. [required]'
     )
     parser.add_argument(
         '-r', '--ref',
-        help='Path to the reference FASTA (FAI index is required). [None]'
+        help='Path to the reference FASTA (FAI index is required). [required]'
     )
     parser.add_argument(
         '--info', default='AF',
@@ -68,7 +68,7 @@ def parse_args():
 
 def annotate_vcf(
     fn_vcf: str,
-    fn_panel_vcf: str,
+    fn_query_vcf: str,
     fn_fasta: str,
     fn_out: str,
     info_tag: str,
@@ -79,23 +79,21 @@ def annotate_vcf(
     # Open panel VCF. Searching for `info_tag` in the header
     info = None
     try:
-        f_panel = pysam.VariantFile(fn_panel_vcf)
-        for r in f_panel.header.records:
+        f_query_vcf = pysam.VariantFile(fn_query_vcf)
+        for r in f_query_vcf.header.records:
             if r.type == 'INFO':
                 if r.get('ID') == info_tag:
-                    # info = r.items()
                     info = dict(r)
                     break    
     except:
-        raise ValueError(f'Error: Cannot open "{fn_panel_vcf}"')
+        raise ValueError(f'Error: Cannot open "{fn_query_vcf}"')
 
     # If info_tag cannot be found, exit program
     if info is None:
-        print(f'Error: info-tag "{info_tag}" cannot be found in f{fn_panel_vcf}. Exit.')
+        print(f'Error: info-tag "{info_tag}" cannot be found in f{fn_query_vcf}. Exit.')
         exit(1)
     info.pop('IDX', None)
     info['Description'] = info['Description'].replace('"', '')
-    print(info)
     
     try:
         f_vcf = pysam.VariantFile(fn_vcf)
@@ -129,10 +127,9 @@ def annotate_vcf(
     for var in f_vcf.fetch():
         if select_variant(var):
             annotated_v = allele_match.fetch_nearby_cohort(
-                var=var, f_panel=f_panel,
+                var=var, f_query_vcf=f_query_vcf,
                 f_fasta=f_fasta, 
                 info=info,
-                # info_tag=info_tag, 
                 debug=debug)
             if annotated_v:
                 f_out.write(annotated_v)
@@ -148,7 +145,7 @@ if __name__ == '__main__':
 
     annotate_vcf(
         fn_vcf=args.vcf,
-        fn_panel_vcf=args.panel,
+        fn_query_vcf=args.query_vcf,
         fn_fasta=args.ref,
         fn_out=args.out,
         info_tag=args.info,

@@ -9,6 +9,7 @@ def update_info_empty(var: pysam.VariantRecord, info: dict):
     info_num = info['Number']
     if info_num == 'A':
         var.info.__setitem__(info['ID'], tuple([0 for _ in var.alts]))
+    # Legal format, but have not supported
     # elif info_num == 'R':
     #     var.info.__setitem__(info['ID'], tuple([0 for _ in var.alleles]))
     elif info_num == '0':
@@ -87,8 +88,8 @@ def match_allele(
     try:
         if info_num in ['0', '1']:
             var.info.__setitem__(info['ID'], tuple(dict_alt_info.values())[0])
+        # Rare weird cases where both alts are the same
         elif len(dict_alt_info.keys()) != len(var.alts):
-            # Rare weird cases where both alts are the same
             var.info.__setitem__(info['ID'], tuple([list(dict_alt_info.values())[0] for _ in var.alts]))
         else:
             var.info.__setitem__(info['ID'], tuple(dict_alt_info.values()))
@@ -100,7 +101,7 @@ def match_allele(
 
 def fetch_nearby_cohort(
     var: pysam.VariantRecord,
-    f_panel: pysam.VariantFile,
+    f_query_vcf: pysam.VariantFile,
     f_fasta: pysam.FastaFile,
     info: dict,
     debug: bool=False
@@ -109,7 +110,7 @@ def fetch_nearby_cohort(
 
     Inputs:
         - var: Target variant.
-        - f_panel: Cohort VCF file.
+        - f_query_vcf: Queried VCF file (e.g. a cohort VCF).
         - f_fasta: REF FASTA file.
         - info: VCF INFO field. 'ID', 'Number', 'Type' are required.
             E.g.
@@ -123,7 +124,7 @@ def fetch_nearby_cohort(
     # var_region = (var.contig, var.start, var.start + max(var.alleles))
     # Fetch cohort variants
     var_maxstop = max([var.start + len(a) for a in var.alleles])
-    cohort_vars = list(f_panel.fetch(
+    cohort_vars = list(f_query_vcf.fetch(
         var.contig, var.start, var_maxstop))
 
     # If cannot find matched cohorts, set AF to 0
@@ -137,8 +138,8 @@ def fetch_nearby_cohort(
         cohort_maxstop = max(cohort_maxstop,
                                 max([v.start + len(a) for a in v.alleles]))
 
+    # All variants should have the same contig
     if not all([v.contig == var.contig for v in cohort_vars]):
-        # All variants should have the same contig
         raise ValueError(
             "Fetched variants have disconcordant contigs: ",
             [v.contig for v in cohort_vars])
@@ -150,7 +151,6 @@ def fetch_nearby_cohort(
     except:
         update_info_empty(var, info)
         print(f'Warning: encounter the edge of a contig. Set "{info["ID"]}" as the init value.', file=sys.stderr)
-        # raise ValueError("Errors during fetching allele matching sequence in the ref FASTA")
     
     try:
         return match_allele(

@@ -144,13 +144,13 @@ class TestAlleleMatch(unittest.TestCase):
     ])
     def test_fetch_nearby_cohort(self, info, gold):
         f_vcf = pysam.VariantFile(os.path.join('test_data', 'HG00733-hifi_deepvariant-chr20_568936_571052.vcf.gz'))
-        f_panel = pysam.VariantFile(os.path.join('test_data', 'chr20_560000_580000.cohort.vcf.gz'))
+        f_query_vcf = pysam.VariantFile(os.path.join('test_data', 'chr20_560000_580000.cohort.vcf.gz'))
         f_fasta = pysam.FastaFile(os.path.join('test_data', 'chr20_1_580000.fa'))
         f_vcf.header.add_meta('INFO', items=info.items())
 
         for i, v in enumerate(f_vcf.fetch()):
             v_result = allele_match.fetch_nearby_cohort(
-                var=v, f_panel=f_panel,
+                var=v, f_query_vcf=f_query_vcf,
                 f_fasta=f_fasta, info=info)
             
             # Number of values = number of alt alleles
