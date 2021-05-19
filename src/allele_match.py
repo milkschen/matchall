@@ -113,6 +113,7 @@ def fetch_nearby_cohort(
     f_fasta: pysam.FastaFile,
     update_info: dict,
     query_info: dict=None,
+    padding: int=0,
     debug: bool=False
     ) -> pysam.VariantRecord:
     ''' Fetch nearby cohorts and local REF haplotype for a variant.
@@ -133,9 +134,12 @@ def fetch_nearby_cohort(
     # Pysam uses 0-based
     # var_region = (var.contig, var.start, var.start + max(var.alleles))
     # Fetch cohort variants
-    var_maxstop = max([var.start + len(a) for a in var.alleles])
+    var_start = var.start - padding
+    if var_start < 0:
+        var_start = 0
+    var_maxstop = max([var.start + len(a) for a in var.alleles]) + padding
     cohort_vars = list(f_query_vcf.fetch(
-        var.contig, var.start, var_maxstop))
+        var.contig, var_start, var_maxstop))
 
     # If cannot find matched cohorts, set AF to 0
     if len(cohort_vars) == 0:

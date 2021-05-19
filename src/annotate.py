@@ -55,6 +55,10 @@ def parse_args():
         help='Path to output VCF. Set to "-" to print to stdout. ["-"]'
     )
     parser.add_argument(
+        '-p', '--padding', default=20, type=int,
+        help='Length of paddings. [20]'
+    )
+    parser.add_argument(
         '--happy', action='store_true',
         help='Set for hap.py VCFs. [False]'
     )
@@ -72,6 +76,7 @@ def annotate_vcf(
     fn_fasta: str,
     fn_out: str,
     info_tag: str,
+    padding: int,
     happy_vcf: bool,
     debug: bool=False
     # af_cutoff: float=0, af_prefix: str=None
@@ -131,6 +136,7 @@ def annotate_vcf(
                 f_fasta=f_fasta, 
                 update_info=info,
                 query_info=info,
+                padding=padding,
                 debug=debug)
             if annotated_v:
                 f_out.write(annotated_v)
@@ -150,6 +156,7 @@ if __name__ == '__main__':
         fn_fasta=args.ref,
         fn_out=args.out,
         info_tag=args.info,
+        padding=args.padding,
         happy_vcf=args.happy,
         debug=args.debug
         # af_cutoff=args.allele_frequency_cutoff,
