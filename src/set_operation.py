@@ -149,15 +149,12 @@ def match_vcf(
                 if do_annotate and annotated_v:
                     f_out.write(annotated_v)
                 
-                if do_isec and annotated_v:
-                    # if any(annotated_v.info['MATCH']):
-                    if annotated_v.info['MATCH']:
-                        f_isec0.write(annotated_v)
-                
-                if do_private and annotated_v:
-                    # if not all(annotated_v.info['MATCH']):
-                    if not annotated_v.info['MATCH']:
-                        f_private0.write(annotated_v)
+                if do_isec and max(annotated_v.info['MATCH']) == 1:
+                # if do_isec and all(annotated_v.info['MATCH']) == 1:
+                    f_isec0.write(annotated_v)
+                if do_private and max(annotated_v.info['MATCH']) == 0:
+                # if do_private and not all (annotated_v.info['MATCH']) == 0:
+                    f_private0.write(annotated_v)
             except Exception as e:
                 print(e)
     
@@ -173,15 +170,12 @@ def match_vcf(
                     debug=debug)
                 
                 try:
-                    if do_isec and annotated_v:
-                        # if any(annotated_v.info['MATCH']):
-                        if annotated_v.info['MATCH']:
-                            f_isec1.write(annotated_v)
-                    
-                    if do_private and annotated_v:
-                        # if not all(annotated_v.info['MATCH']):
-                        if not annotated_v.info['MATCH']:
-                            f_private1.write(annotated_v)
+                    if do_isec and max(annotated_v.info['MATCH']) == 1:
+                    # if do_isec and all(annotated_v.info['MATCH']) == 1:
+                        f_isec1.write(annotated_v)
+                    if do_private and max(annotated_v.info['MATCH']) == 0:
+                    # if do_private and not all (annotated_v.info['MATCH']) == 0:
+                        f_private1.write(annotated_v)
                 except Exception as e:
                     print(e)
 
