@@ -1,6 +1,6 @@
-# Allele match
- Ex
-`allele_match` annotates a VCF with the information in another VCF. 
+# Matchall
+
+`matchall` annotates a VCF with the information in another VCF. 
 Example use case: filling the population allele frequency (`AF`) field in a called variant set using information in a reference panel, such as the 1000 Genomes Project.
 This is a Pysam implementation of the variant allele matching algorithm described in this [preprint](https://doi.org/10.1101/2021.01.06.425550).
 
@@ -11,7 +11,7 @@ A variant can be represented in multiple formats. An example in the table below 
 | 1   | GAC | GA  |
 | 2   | AC  | A   |
 
-The `allele_match` algorithm solves this issue by comparing a variant and a set of queried variants from another VCF using re-constructed local haplotypes.
+The `matchall` algorithm solves this issue by comparing a variant and a set of queried variants from another VCF using re-constructed local haplotypes.
 This algorithm annotates variants accurately regardless of representation.
 
 Currently, we only support annotating the `AF` (population allele frequency) field, but it's supposedly capable of supporting other tags. Please file an issue or pull request if there's a need.
@@ -25,7 +25,7 @@ Currently, we only support annotating the `AF` (population allele frequency) fie
 - bcftools (1.12)
 - tabix (1.12)
 
-### Download allele_match
+### Download matchall
 ```
 https://github.com/milkschen/allele_match.git
 ```
@@ -70,5 +70,10 @@ bcftools view -O z -i "AF<=${AF_CUTOFF}" -o ${VCF_RARE} ${VCF_AF}; tabix ${VCF_R
 
 ## Test
 ```
-python src/test-allele_match.py
+python src/test_allele_match.py
+python src/test_end_to_end.py
+```
+Or
+```
+sh test_all.sh
 ```
