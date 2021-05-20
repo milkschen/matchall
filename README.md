@@ -27,7 +27,7 @@ Currently, we only support annotating the `AF` (population allele frequency) fie
 
 ### Download matchall
 ```
-https://github.com/milkschen/allele_match.git
+https://github.com/milkschen/matchall.git
 ```
 
 ## Cohort variants
