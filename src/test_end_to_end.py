@@ -1,10 +1,10 @@
-# import allele_match
+# import matchall
 import os
 import subprocess
 import unittest
 
 from parameterized import parameterized
-from test_allele_match import PysamVariant
+from test_matchall import PysamVariant
 
 
 

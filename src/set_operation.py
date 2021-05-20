@@ -2,7 +2,7 @@
 Perform set operations on two VCFs.
 E.g. Finding the intersection/union set.
 '''
-import allele_match
+import matchall
 import argparse
 import pysam
 import sys
@@ -139,7 +139,7 @@ def match_vcf(
 
     for var in f_vcf.fetch():
         if select_variant(var):
-            annotated_v = allele_match.fetch_nearby_cohort(
+            annotated_v = matchall.fetch_nearby_cohort(
                 var=var, f_query_vcf=f_query_vcf,
                 f_fasta=f_fasta, 
                 update_info=update_info,
@@ -162,7 +162,7 @@ def match_vcf(
     if do_isec or do_private:
         for var in f_query_vcf.fetch():
             if select_variant(var):
-                annotated_v = allele_match.fetch_nearby_cohort(
+                annotated_v = matchall.fetch_nearby_cohort(
                     var=var, f_query_vcf=f_vcf,
                     f_fasta=f_fasta, 
                     update_info=update_info,

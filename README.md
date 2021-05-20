@@ -1,8 +1,12 @@
 # Matchall
 
-`matchall` annotates a VCF with the information in another VCF. 
-Example use case: filling the population allele frequency (`AF`) field in a called variant set using information in a reference panel, such as the 1000 Genomes Project.
+`matchall` (MATCH ALLele) annotates a VCF with the information in another VCF. 
 This is a Pysam implementation of the variant allele matching algorithm described in this [preprint](https://doi.org/10.1101/2021.01.06.425550).
+
+Example use case: 
+
+- filling the population allele frequency (`AF`) field in a variant set using information in a reference panel.
+- comparing two VCFs to find shared and private variants
 
 A variant can be represented in multiple formats. An example in the table below shows a variant in two forms. The ambiguity in variant representation can confound annotating and result in errors.
 
@@ -14,7 +18,6 @@ A variant can be represented in multiple formats. An example in the table below 
 The `matchall` algorithm solves this issue by comparing a variant and a set of queried variants from another VCF using re-constructed local haplotypes.
 This algorithm annotates variants accurately regardless of representation.
 
-Currently, we only support annotating the `AF` (population allele frequency) field, but it's supposedly capable of supporting other tags. Please file an issue or pull request if there's a need.
 
 ## Installation
 ### Dependencies - required
@@ -55,7 +58,7 @@ REF=<grch38.fa> # reference FASTA for VCF
 VCF=<vcf> # VCF to be annotated
 VCF_AF=<annotated.vcf> # path to the output annotated VCF
 
-python src/allele_match.py -p cohort.release_missing2ref.no_calls.vcf.gz -v ${VCF} -r ${REF} -o - | bgzip > ${VCF_AF}; tabix ${VCF_AF}
+python src/matchall.py -q cohort.release_missing2ref.no_calls.vcf.gz -v ${VCF} -r ${REF} -o - | bgzip > ${VCF_AF}; tabix ${VCF_AF}
 ```
 
 After annotating, we can split the VCF file based on an allele frequency cutoff:
@@ -70,7 +73,7 @@ bcftools view -O z -i "AF<=${AF_CUTOFF}" -o ${VCF_RARE} ${VCF_AF}; tabix ${VCF_R
 
 ## Test
 ```
-python src/test_allele_match.py
+python src/test_matchall.py
 python src/test_end_to_end.py
 ```
 Or
