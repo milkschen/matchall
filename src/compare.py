@@ -47,6 +47,10 @@ def parse_args():
              'Multiple modes can be toggled at once, e.g. "annotate,private,isec". ["annotate"]'
     )
     parser.add_argument(
+        '-gt', '--gt-resolution', action='store_true',
+        help='Set to use genotype-level resolution (less precise). [False]'
+    )
+    parser.add_argument(
         '--happy', action='store_true',
         help='Set for hap.py VCFs. [False]'
     )
@@ -62,6 +66,7 @@ def write_to_isec_and_private(
     var: pysam.VariantRecord,
     do_isec: bool,
     do_private: bool,
+    gt_resolution: bool,
     f_isec: pysam.VariantFile=None,
     f_private: pysam.VariantFile=None
     ) -> None:
@@ -87,6 +92,15 @@ def write_to_isec_and_private(
         return var
 
     match_status = var.info['MATCH']
+    if gt_resolution:
+        if all(match_status) == 1:
+            if do_isec:
+                f_isec.write(var)
+        elif do_private:
+            f_private.write(var)
+        return
+    
+    # Allelic resolution
     if all(match_status) == 1:
         if do_isec:
             f_isec.write(var)
@@ -110,7 +124,8 @@ def write_to_isec_and_private(
 def compare_vcf_core(
     f_primary_vcf, f_db_vcf, f_fasta, f_out, f_isec, f_private,
     do_annotate, do_isec, do_private,
-    padding, update_info, happy_vcf, debug):
+    padding, gt_resolution,
+    update_info, happy_vcf, debug):
     def select_variant(var):
         if happy_vcf and var.info.get('Regions'):
             # Check variants in confident regions (hap.py specific)
@@ -135,7 +150,8 @@ def compare_vcf_core(
                 f_out.write(annotated_v)
             if do_isec or do_private:
                 write_to_isec_and_private(
-                    annotated_v, do_isec, do_private, f_isec, f_private)
+                    var=annotated_v, do_isec=do_isec, do_private=do_private,
+                    gt_resolution=gt_resolution, f_isec=f_isec, f_private=f_private)
 
         except Exception as e:
             print(f'Warning: encounter the below exception when querying {f_primary_vcf} agains {f_db_vcf}')
@@ -150,6 +166,7 @@ def compare_vcf(
     fn_out: str,
     mode: list,
     padding: str,
+    gt_resolution: bool,
     out_prefix: str=None,
     happy_vcf: bool=False,
     debug: bool=False
@@ -209,7 +226,7 @@ def compare_vcf(
         f_isec=f_isec0, f_private=f_private0,
         f_fasta=f_fasta, f_out=f_out, 
         do_annotate=do_annotate, do_isec=do_isec, do_private=do_private,
-        padding=padding, update_info=update_info, 
+        padding=padding, update_info=update_info, gt_resolution=gt_resolution,
         happy_vcf=happy_vcf, debug=debug)
     
     # Second loop - using f_query_vcf as main and f_vcf as query
@@ -221,7 +238,7 @@ def compare_vcf(
             f_isec=f_isec1, f_private=f_private1,
             f_fasta=f_fasta, f_out=f_out, 
             do_annotate=False, do_isec=do_isec, do_private=do_private,
-            padding=padding, update_info=update_info, 
+            padding=padding, update_info=update_info, gt_resolution=gt_resolution,
             happy_vcf=happy_vcf, debug=debug)
 
 
@@ -241,6 +258,7 @@ if __name__ == '__main__':
         out_prefix=args.out_prefix,
         padding=args.padding,
         mode=args.mode,
+        gt_resolution=args.gt_resolution,
         happy_vcf=args.happy,
         debug=args.debug
     )
