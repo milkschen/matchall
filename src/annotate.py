@@ -122,15 +122,20 @@ def annotate_vcf(
     
     for var in f_vcf.fetch():
         if select_variant(var):
-            annotated_v = matchall.fetch_nearby_cohort(
-                var=var, f_query_vcf=f_query_vcf,
-                f_fasta=f_fasta, 
-                update_info=info,
-                query_info=info,
-                padding=padding,
-                debug=debug)
-            if annotated_v:
-                f_out.write(annotated_v)
+            try:
+                annotated_v = matchall.fetch_nearby_cohort(
+                    var=var, f_query_vcf=f_query_vcf,
+                    f_fasta=f_fasta, 
+                    update_info=info,
+                    query_info=info,
+                    padding=padding,
+                    debug=debug)
+                if annotated_v:
+                    f_out.write(annotated_v)
+            except Exception as e:
+                print(f'Warning: encounter the below exception when querying {fn_query_vcf} agains {fn_vcf}')
+                print(e)
+                print(var)
 
 
 if __name__ == '__main__':
