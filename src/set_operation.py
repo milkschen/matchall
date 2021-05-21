@@ -91,13 +91,13 @@ def match_vcf(
         fn_isec0 = out_prefix + '.isec0.vcf.gz'
         f_isec0 = pysam.VariantFile(fn_isec0, 'w', header=f_vcf.header)
         fn_isec1 = out_prefix + '.isec1.vcf.gz'
-        f_isec1 = pysam.VariantFile(fn_isec1, 'w', header=f_vcf.header)
+        f_isec1 = pysam.VariantFile(fn_isec1, 'w', header=f_query_vcf.header)
 
     if do_private: 
         fn_private0 = out_prefix + '.private0.vcf.gz'
         f_private0 = pysam.VariantFile(fn_private0, 'w', header=f_vcf.header)
         fn_private1 = out_prefix + '.private1.vcf.gz'
-        f_private1 = pysam.VariantFile(fn_private1, 'w', header=f_vcf.header)
+        f_private1 = pysam.VariantFile(fn_private1, 'w', header=f_query_vcf.header)
 
     def select_variant(var):
         if happy_vcf and var.info.get('Regions'):
@@ -151,6 +151,7 @@ def match_vcf(
                 except Exception as e:
                     print(f'Warning: encounter the below exception when querying {fn_query_vcf} agains {fn_vcf}')
                     print(e)
+                    print(var)
 
 
 if __name__ == '__main__':
