@@ -46,7 +46,17 @@ You may also use other reference panels, such as the [GRCh38-based 1000 Genomes 
 We require a VCF format where allele frequency information is provided as an `AF` tag in the `INFO` field.
 
 ## Usage
-- [annotate](tutorials/annotate.md)
+### Annotate
+```
+python annotate.py -v target.vcf.gz -q query.vcf.gz -r ref.fa -o out.vcf.gz
+```
+- [Detailed tutorial for matchall-annotate](tutorials/annotate.md)
+
+### Compare
+```
+python src/compare.py -v A.vcf.gz -q B.vcf.gz -op A_0-B_1 -m annotate,private,isec -o A_0-B_1.vcf.gz -r ref.fa
+```
+- [Detailed tutorial for matchall-compare](tutorials/compare.md)
 
 ## Test
 ```

@@ -93,14 +93,10 @@ def write_to_isec_and_private(
         var_matched = var.copy()
         var_unmatched = var.copy()
         for i, m in enumerate(match_status):
-            # print (i,m)
             if not m:
                 var_matched = mask_allele(var_matched, i)
             elif m:
                 var_unmatched = mask_allele(var_unmatched, i)
-                # if not all([a == '*' for a in var_new.alts]):
-                #     f_private.write(var_new)
-                    # f_private.write(var)
         if do_isec and any([a != '*' for a in var_matched.alts]):
             f_isec.write(var_matched)
         if do_private and any([a != '*' for a in var_unmatched.alts]):
