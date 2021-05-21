@@ -26,7 +26,9 @@ class TestAnnotate(unittest.TestCase):
         ['NS']
     ])
     def test_annotate(self, info_id):
-        cmd = f'python src/annotate.py -r {self.fn_fasta} -v {self.fn_vcf} -q {self.fn_query_vcf} --info {info_id} | bcftools view -H'
+        # Using grep to exclude VCF headers
+        cmd = (f'python src/annotate.py -r {self.fn_fasta} -v {self.fn_vcf} '
+               f'-q {self.fn_query_vcf} --info {info_id} | grep "^[^#]"')
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
         stdout, stderr = process.communicate()
         gold = b''
@@ -45,7 +47,9 @@ class TestMatch(unittest.TestCase):
         cls.fn_gold = os.path.join('test_data', 'gold-HG002-chr1_870000_875000.vcf')
 
     def test_match(self):
-        cmd = f'python src/set_operation.py -r {self.fn_fasta} -v {self.fn_vcf} -q {self.fn_query_vcf} | bcftools view -H'
+        # Using grep to exclude VCF headers
+        cmd = (f'python src/set_operation.py -r {self.fn_fasta} -v {self.fn_vcf} '
+               f'-q {self.fn_query_vcf} | grep "^[^#]"')
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
         stdout, stderr = process.communicate()
         gold = b''
