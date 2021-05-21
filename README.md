@@ -33,18 +33,6 @@ This algorithm annotates variants accurately regardless of representation.
 https://github.com/milkschen/matchall.git
 ```
 
-## Cohort variants
-A DeepVariant-GLnexus-based call set for the 1000 Genomes Project (2504 samples) is avaialable [here](https://console.cloud.google.com/storage/browser/brain-genomics-public/research/cohort/1KGP/cohort_dv_glnexus_opt/v3_missing2ref;tab=objects?prefix=&forceOnObjectsSortingFiltering=false).
-You can download it through the website, or use the following command:
-
-```
-for i in $(seq 1 22); do wget https://storage.googleapis.com/brain-genomics-public/research/cohort/1KGP/cohort_dv_glnexus_opt/v3_missing2ref/cohort-chr${i}.release_missing2ref.no_calls.vcf.gz; done
-for i in $(seq 1 22); do wget https://storage.googleapis.com/brain-genomics-public/research/cohort/1KGP/cohort_dv_glnexus_opt/v3_missing2ref/cohort-chr${i}.release_missing2ref.no_calls.vcf.gz.tbi; done
-```
-
-You may also use other reference panels, such as the [GRCh38-based 1000 Genomes calls](https://www.internationalgenome.org/announcements/Variant-calls-from-1000-Genomes-Project-data-on-the-GRCh38-reference-assemlby/), [gnomAD](https://gnomad.broadinstitute.org/downloads), etc. 
-We require a VCF format where allele frequency information is provided as an `AF` tag in the `INFO` field.
-
 ## Usage
 ### Annotate
 ```

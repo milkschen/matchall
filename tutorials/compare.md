@@ -18,6 +18,11 @@ Allele-resolution:
 python src/compare.py -v A.vcf.gz -q B.vcf.gz -op out-A_0-B_1 -m annotate,private,isec -o out-A_0-B_1.vcf.gz -r ref.fa
 ```
 
+** Example using a test case: **
+```
+python src/compare.py -r test_data/chr20_1_580000.fa -v test_data/chr20_156877-A.vcf.gz -q test_data/chr20_156877-B.vcf.gz -m isec,private -op test_data/test-compare-chr20_156877
+```
+
 Genotype-resolution:
 ```
 python src/compare.py -v A.vcf.gz -q B.vcf.gz -op out-A_0-B_1 -m annotate,private,isec -o out-A_0-B_1.vcf.gz -r ref.fa -gt
