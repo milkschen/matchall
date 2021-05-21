@@ -76,57 +76,28 @@ def match_vcf(
 
     update_info = {'ID': 'MATCH', 'Number': 'A', 'Type': 'Integer', 'Description': 'If genotype is matched with a query'}
     # update_info = {'ID': 'MATCH', 'Number': '1', 'Type': 'Integer', 'Description': 'If genotype is matched with a query'}
-    try:
-        f_vcf = pysam.VariantFile(fn_vcf)
-        # f_vcf.header.info.get('INFO', update_info.items())
-        f_vcf.header.add_meta('INFO', items=update_info.items())
-    except Exception as e:
-        raise(e)
-    # except:
-    #     raise ValueError(f'Error: Cannot open "{fn_vcf}"')
 
-    try:
-        f_query_vcf = pysam.VariantFile(fn_query_vcf)
-        if do_isec or do_private:
-            f_query_vcf.header.add_meta('INFO', items=update_info.items())
-    except Exception as e:
-        raise(e)
-        # raise ValueError(f'Error: Cannot open "{fn_query_vcf}"')
-
-    try:
-        f_fasta = pysam.FastaFile(fn_fasta)
-    except:
-        raise ValueError(f'Error: Cannot open "{fn_fasta}"')
-
+    f_vcf = pysam.VariantFile(fn_vcf)
+    f_vcf.header.add_meta('INFO', items=update_info.items())
+    f_query_vcf = pysam.VariantFile(fn_query_vcf)
+    if do_isec or do_private:
+        f_query_vcf.header.add_meta('INFO', items=update_info.items())
+    f_fasta = pysam.FastaFile(fn_fasta)
+    
     if do_annotate: 
-        try:
-            f_out = pysam.VariantFile(fn_out, 'w', header=f_vcf.header)
-        except:
-            raise ValueError(f'Error: Cannot create "{fn_out}"')
+        f_out = pysam.VariantFile(fn_out, 'w', header=f_vcf.header)
     
     if do_isec: 
-        try:
-            fn_isec0 = out_prefix + '.isec0.vcf.gz'
-            f_isec0 = pysam.VariantFile(fn_isec0, 'w', header=f_vcf.header)
-        except:
-            raise ValueError(f'Error: Cannot create "{fn_isec0}"')
-        try:
-            fn_isec1 = out_prefix + '.isec1.vcf.gz'
-            f_isec1 = pysam.VariantFile(fn_isec1, 'w', header=f_vcf.header)
-        except:
-            raise ValueError(f'Error: Cannot create "{fn_isec1}"')
+        fn_isec0 = out_prefix + '.isec0.vcf.gz'
+        f_isec0 = pysam.VariantFile(fn_isec0, 'w', header=f_vcf.header)
+        fn_isec1 = out_prefix + '.isec1.vcf.gz'
+        f_isec1 = pysam.VariantFile(fn_isec1, 'w', header=f_vcf.header)
 
     if do_private: 
-        try:
-            fn_private0 = out_prefix + '.private0.vcf.gz'
-            f_private0 = pysam.VariantFile(fn_private0, 'w', header=f_vcf.header)
-        except:
-            raise ValueError(f'Error: Cannot create "{fn_private0}"')
-        try:
-            fn_private1 = out_prefix + '.private1.vcf.gz'
-            f_private1 = pysam.VariantFile(fn_private1, 'w', header=f_vcf.header)
-        except:
-            raise ValueError(f'Error: Cannot create "{fn_private1}"')
+        fn_private0 = out_prefix + '.private0.vcf.gz'
+        f_private0 = pysam.VariantFile(fn_private0, 'w', header=f_vcf.header)
+        fn_private1 = out_prefix + '.private1.vcf.gz'
+        f_private1 = pysam.VariantFile(fn_private1, 'w', header=f_vcf.header)
 
     def select_variant(var):
         if happy_vcf and var.info.get('Regions'):
@@ -156,6 +127,7 @@ def match_vcf(
                 # if do_private and not all (annotated_v.info['MATCH']) == 0:
                     f_private0.write(annotated_v)
             except Exception as e:
+                print(f'Warning: encounter the below exception when querying {fn_vcf} agains {fn_query_vcf}')
                 print(e)
     
     # Second loop - using f_query_vcf as main and f_vcf as query
@@ -177,6 +149,7 @@ def match_vcf(
                     # if do_private and not all (annotated_v.info['MATCH']) == 0:
                         f_private1.write(annotated_v)
                 except Exception as e:
+                    print(f'Warning: encounter the below exception when querying {fn_query_vcf} agains {fn_vcf}')
                     print(e)
 
 

@@ -100,19 +100,10 @@ def annotate_vcf(
     info.pop('IDX', None)
     info['Description'] = info['Description'].replace('"', '')
     
-    try:
-        f_vcf = pysam.VariantFile(fn_vcf)
-        f_vcf.header.add_meta('INFO', items = info.items())
-    except:
-        raise ValueError(f'Error: Cannot open "{fn_vcf}"')
-    try:
-        f_fasta = pysam.FastaFile(fn_fasta)
-    except:
-        raise ValueError(f'Error: Cannot open "{fn_fasta}"')
-    try:
-        f_out = pysam.VariantFile(fn_out, 'w', header=f_vcf.header)
-    except:
-        raise ValueError(f'Error: Cannot create "{fn_out}"')
+    f_vcf = pysam.VariantFile(fn_vcf)
+    f_vcf.header.add_meta('INFO', items = info.items())
+    f_fasta = pysam.FastaFile(fn_fasta)
+    f_out = pysam.VariantFile(fn_out, 'w', header=f_vcf.header)
 
     # if af_cutoff > 0 and af_prefix == None:
     #     raise ValueError(f'Error: `allele-frequency-prefix` needs to be set when `allele-frequency-cutoff` > 0')
