@@ -38,6 +38,10 @@ def parse_args():
         help='Prefix to output VCF for "isec" and "private" modes. [None]'
     )
     parser.add_argument(
+        '--padding', default=10, type=int,
+        help='Size of paddings when performing allele matching. [10]'
+    )
+    parser.add_argument(
         '-m', '--mode', default='annotate',
         help='Mode: ["annotate", "isec", "private"]. ' + 
              'Multiple modes can be toggled at once, e.g. "annotate,private,isec". ["annotate"]'
@@ -106,7 +110,7 @@ def write_to_isec_and_private(
 def compare_vcf_core(
     f_primary_vcf, f_db_vcf, f_fasta, f_out, f_isec, f_private,
     do_annotate, do_isec, do_private,
-    update_info, happy_vcf, debug):
+    padding, update_info, happy_vcf, debug):
     def select_variant(var):
         if happy_vcf and var.info.get('Regions'):
             # Check variants in confident regions (hap.py specific)
@@ -125,6 +129,7 @@ def compare_vcf_core(
                 f_fasta=f_fasta, 
                 update_info=update_info,
                 query_info=None,
+                padding=padding,
                 debug=debug)
             if do_annotate and annotated_v:
                 f_out.write(annotated_v)
@@ -144,6 +149,7 @@ def compare_vcf(
     fn_fasta: str,
     fn_out: str,
     mode: list,
+    padding: str,
     out_prefix: str=None,
     happy_vcf: bool=False,
     debug: bool=False
@@ -203,7 +209,8 @@ def compare_vcf(
         f_isec=f_isec0, f_private=f_private0,
         f_fasta=f_fasta, f_out=f_out, 
         do_annotate=do_annotate, do_isec=do_isec, do_private=do_private,
-        update_info=update_info, happy_vcf=happy_vcf, debug=debug)
+        padding=padding, update_info=update_info, 
+        happy_vcf=happy_vcf, debug=debug)
     
     # Second loop - using f_query_vcf as main and f_vcf as query
     # Don't need to run this if neither isec or private modes are activated
@@ -214,7 +221,8 @@ def compare_vcf(
             f_isec=f_isec1, f_private=f_private1,
             f_fasta=f_fasta, f_out=f_out, 
             do_annotate=False, do_isec=do_isec, do_private=do_private,
-            update_info=update_info, happy_vcf=happy_vcf, debug=debug)
+            padding=padding, update_info=update_info, 
+            happy_vcf=happy_vcf, debug=debug)
 
 
 if __name__ == '__main__':
@@ -231,6 +239,7 @@ if __name__ == '__main__':
         fn_fasta=args.ref,
         fn_out=args.out,
         out_prefix=args.out_prefix,
+        padding=args.padding,
         mode=args.mode,
         happy_vcf=args.happy,
         debug=args.debug
