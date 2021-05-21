@@ -54,7 +54,13 @@ def parse_args():
     return args
 
 
-def write_to_isec_and_private(var, do_isec, do_private, f_isec, f_private) -> None:
+def write_to_isec_and_private(
+    var: pysam.VariantRecord,
+    do_isec: bool,
+    do_private: bool,
+    f_isec: pysam.VariantFile=None,
+    f_private: pysam.VariantFile=None
+    ) -> None:
     ''' Write a variant to private/isec VCFs.
 
     Criteria:
@@ -63,11 +69,19 @@ def write_to_isec_and_private(var, do_isec, do_private, f_isec, f_private) -> No
         - mixed: 
             * matched alleles -> isec (unmatched alleles masked using "*")
             * unmathced alleles -> private (matched alleles masked using "*")
-
     '''
     if (not do_isec) and (not do_private):
         return
     
+    def mask_allele(var, i):
+        alleles = list(var.alleles)
+        alleles[i + 1] = '*'
+        var.alleles = alleles
+        alts = list(var.alts)
+        alts[i] = '*'
+        var.alts = alts
+        return var
+
     match_status = var.info['MATCH']
     if all(match_status) == 1:
         if do_isec:
@@ -76,25 +90,56 @@ def write_to_isec_and_private(var, do_isec, do_private, f_isec, f_private) -> No
         if do_private:
             f_private.write(var)
     else: # compound
+        var_matched = var.copy()
+        var_unmatched = var.copy()
         for i, m in enumerate(match_status):
-            if m and do_isec:
-                alleles = list(var.alleles)
-                alleles[i + 1] = '*'
-                var.alleles = alleles
-                alts = list(var.alts)
-                alts[i] = '*'
-                var.alts = alts
-                if not all([a == '*' for a in alts]):
-                    f_isec.write(var)
-            elif (not m) and do_private:
-                alleles = list(var.alleles)
-                alleles[i + 1] = '*'
-                var.alleles = alleles
-                alts = list(var.alts)
-                alts[i] = '*'
-                var.alts = alts
-                if not all([a == '*' for a in alts]):
-                    f_private.write(var)
+            # print (i,m)
+            if not m:
+                var_matched = mask_allele(var_matched, i)
+            elif m:
+                var_unmatched = mask_allele(var_unmatched, i)
+                # if not all([a == '*' for a in var_new.alts]):
+                #     f_private.write(var_new)
+                    # f_private.write(var)
+        if do_isec and any([a != '*' for a in var_matched.alts]):
+            f_isec.write(var_matched)
+        if do_private and any([a != '*' for a in var_unmatched.alts]):
+            f_private.write(var_matched)
+
+
+def compare_vcf_core(
+    f_primary_vcf, f_db_vcf, f_fasta, f_out, f_isec, f_private,
+    do_annotate, do_isec, do_private,
+    update_info, happy_vcf, debug):
+    def select_variant(var):
+        if happy_vcf and var.info.get('Regions'):
+            # Check variants in confident regions (hap.py specific)
+            return True
+        if not happy_vcf and var.filter.get('PASS'):
+            # Don't check non-PASS variants
+            return True
+        return False
+
+    for var in f_primary_vcf.fetch():
+        if not select_variant(var):
+            continue
+        try:
+            annotated_v = matchall.fetch_nearby_cohort(
+                var=var, f_query_vcf=f_db_vcf,
+                f_fasta=f_fasta, 
+                update_info=update_info,
+                query_info=None,
+                debug=debug)
+            if do_annotate and annotated_v:
+                f_out.write(annotated_v)
+            if do_isec or do_private:
+                write_to_isec_and_private(
+                    annotated_v, do_isec, do_private, f_isec, f_private)
+
+        except Exception as e:
+            print(f'Warning: encounter the below exception when querying {f_primary_vcf} agains {f_db_vcf}')
+            print(e)
+            print(var)
 
 
 def compare_vcf(
@@ -136,67 +181,44 @@ def compare_vcf(
     
     if do_annotate: 
         f_out = pysam.VariantFile(fn_out, 'w', header=f_vcf.header)
+    else:
+        f_out = None
     
     if do_isec: 
         fn_isec0 = out_prefix + '.isec0.vcf.gz'
         f_isec0 = pysam.VariantFile(fn_isec0, 'w', header=f_vcf.header)
         fn_isec1 = out_prefix + '.isec1.vcf.gz'
         f_isec1 = pysam.VariantFile(fn_isec1, 'w', header=f_query_vcf.header)
+    else:
+        f_isec0 = None
+        f_isec1 = None
 
     if do_private: 
         fn_private0 = out_prefix + '.private0.vcf.gz'
         f_private0 = pysam.VariantFile(fn_private0, 'w', header=f_vcf.header)
         fn_private1 = out_prefix + '.private1.vcf.gz'
         f_private1 = pysam.VariantFile(fn_private1, 'w', header=f_query_vcf.header)
+    else:
+        f_private0 = None
+        f_private1 = None
 
-    def select_variant(var):
-        if happy_vcf and var.info.get('Regions'):
-            # Check variants in confident regions (hap.py specific)
-            return True
-        if not happy_vcf and var.filter.get('PASS'):
-            # Don't check non-PASS variants
-            return True
-        return False
-
-    for var in f_vcf.fetch():
-        if select_variant(var):
-            try:
-                annotated_v = matchall.fetch_nearby_cohort(
-                    var=var, f_query_vcf=f_query_vcf,
-                    f_fasta=f_fasta, 
-                    update_info=update_info,
-                    query_info=None,
-                    debug=debug)
-                if do_annotate and annotated_v:
-                    f_out.write(annotated_v)
-                
-                write_to_isec_and_private(
-                    annotated_v, do_isec, do_private, f_isec0, f_private0)
-
-            except Exception as e:
-                print(f'Warning: encounter the below exception when querying {fn_vcf} agains {fn_query_vcf}')
-                print(e)
-                print(var)
+    compare_vcf_core(
+        f_primary_vcf=f_vcf, f_db_vcf=f_query_vcf, 
+        f_isec=f_isec0, f_private=f_private0,
+        f_fasta=f_fasta, f_out=f_out, 
+        do_annotate=do_annotate, do_isec=do_isec, do_private=do_private,
+        update_info=update_info, happy_vcf=happy_vcf, debug=debug)
     
     # Second loop - using f_query_vcf as main and f_vcf as query
+    # Don't need to run this if neither isec or private modes are activated
+    # Note that `do_annotate` must be turned off in the second loop to avoid over-writing
     if do_isec or do_private:
-        for var in f_query_vcf.fetch():
-            if select_variant(var):
-                try:
-                    annotated_v = matchall.fetch_nearby_cohort(
-                        var=var, f_query_vcf=f_vcf,
-                        f_fasta=f_fasta, 
-                        update_info=update_info,
-                        query_info=None,
-                        debug=debug)
-                
-                    write_to_isec_and_private(
-                        annotated_v, do_isec, do_private, f_isec1, f_private1)
-                    
-                except Exception as e:
-                    print(f'Warning: encounter the below exception when querying {fn_query_vcf} agains {fn_vcf}')
-                    print(e)
-                    print(var)
+        compare_vcf_core(
+            f_primary_vcf=f_query_vcf, f_db_vcf=f_vcf, 
+            f_isec=f_isec1, f_private=f_private1,
+            f_fasta=f_fasta, f_out=f_out, 
+            do_annotate=False, do_isec=do_isec, do_private=do_private,
+            update_info=update_info, happy_vcf=happy_vcf, debug=debug)
 
 
 if __name__ == '__main__':
