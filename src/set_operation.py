@@ -1,6 +1,9 @@
 '''
-Perform set operations on two VCFs.
-E.g. Finding the intersection/union set.
+Finding the intersection/private sets bewteen two VCFs using the matchall algorithm.
+
+Usage:
+    python src/set_operation.py -v A.vcf.gz -q B.vcf.gz -op A_0-B_1 -m annotate,private,isec \
+        -o A_0-B_1.vcf.gz -r genome.fa
 '''
 import matchall
 import argparse
@@ -45,6 +48,49 @@ def parse_args():
     )
     args = parser.parse_args()
     return args
+
+
+def write_to_isec_and_private(var, do_isec, do_private, f_isec, f_private) -> None:
+    ''' Write a variant to private/isec VCFs.
+
+    Criteria:
+        - if all matched -> isec
+        - if none matched -> private
+        - mixed: 
+            * matched alleles -> isec (unmatched alleles masked using "*")
+            * unmathced alleles -> private (matched alleles masked using "*")
+
+    '''
+    if (not do_isec) and (not do_private):
+        return
+    
+    match_status = var.info['MATCH']
+    if all(match_status) == 1:
+        if do_isec:
+            f_isec.write(var)
+    elif not any(match_status) == 1:
+        if do_private:
+            f_private.write(var)
+    else: # compound
+        for i, m in enumerate(match_status):
+            if m and do_isec:
+                alleles = list(var.alleles)
+                alleles[i + 1] = '*'
+                var.alleles = alleles
+                alts = list(var.alts)
+                alts[i] = '*'
+                var.alts = alts
+                if not all([a == '*' for a in alts]):
+                    f_isec.write(var)
+            elif (not m) and do_private:
+                alleles = list(var.alleles)
+                alleles[i + 1] = '*'
+                var.alleles = alleles
+                alts = list(var.alts)
+                alts[i] = '*'
+                var.alts = alts
+                if not all([a == '*' for a in alts]):
+                    f_private.write(var)
 
 
 def match_vcf(
@@ -110,44 +156,51 @@ def match_vcf(
 
     for var in f_vcf.fetch():
         if select_variant(var):
-            annotated_v = matchall.fetch_nearby_cohort(
-                var=var, f_query_vcf=f_query_vcf,
-                f_fasta=f_fasta, 
-                update_info=update_info,
-                query_info=None,
-                debug=debug)
             try:
+                annotated_v = matchall.fetch_nearby_cohort(
+                    var=var, f_query_vcf=f_query_vcf,
+                    f_fasta=f_fasta, 
+                    update_info=update_info,
+                    query_info=None,
+                    debug=debug)
                 if do_annotate and annotated_v:
                     f_out.write(annotated_v)
                 
-                if do_isec and max(annotated_v.info['MATCH']) == 1:
-                # if do_isec and all(annotated_v.info['MATCH']) == 1:
-                    f_isec0.write(annotated_v)
-                if do_private and max(annotated_v.info['MATCH']) == 0:
-                # if do_private and not all (annotated_v.info['MATCH']) == 0:
-                    f_private0.write(annotated_v)
+                write_to_isec_and_private(
+                    annotated_v, do_isec, do_private, f_isec0, f_private0)
+
+                # if do_isec and max(annotated_v.info['MATCH']) == 1:
+                # # if do_isec and all(annotated_v.info['MATCH']) == 1:
+                #     f_isec0.write(annotated_v)
+                # if do_private and max(annotated_v.info['MATCH']) == 0:
+                # # if do_private and not all (annotated_v.info['MATCH']) == 0:
+                #     f_private0.write(annotated_v)
             except Exception as e:
                 print(f'Warning: encounter the below exception when querying {fn_vcf} agains {fn_query_vcf}')
                 print(e)
+                print(var)
     
     # Second loop - using f_query_vcf as main and f_vcf as query
     if do_isec or do_private:
         for var in f_query_vcf.fetch():
             if select_variant(var):
-                annotated_v = matchall.fetch_nearby_cohort(
-                    var=var, f_query_vcf=f_vcf,
-                    f_fasta=f_fasta, 
-                    update_info=update_info,
-                    query_info=None,
-                    debug=debug)
-                
                 try:
-                    if do_isec and max(annotated_v.info['MATCH']) == 1:
-                    # if do_isec and all(annotated_v.info['MATCH']) == 1:
-                        f_isec1.write(annotated_v)
-                    if do_private and max(annotated_v.info['MATCH']) == 0:
-                    # if do_private and not all (annotated_v.info['MATCH']) == 0:
-                        f_private1.write(annotated_v)
+                    annotated_v = matchall.fetch_nearby_cohort(
+                        var=var, f_query_vcf=f_vcf,
+                        f_fasta=f_fasta, 
+                        update_info=update_info,
+                        query_info=None,
+                        debug=debug)
+                
+                    write_to_isec_and_private(
+                        annotated_v, do_isec, do_private, f_isec1, f_private1)
+
+                    # if do_isec and max(annotated_v.info['MATCH']) == 1:
+                    # # if do_isec and all(annotated_v.info['MATCH']) == 1:
+                    #     f_isec1.write(annotated_v)
+                    # if do_private and max(annotated_v.info['MATCH']) == 0:
+                    # # if do_private and not all (annotated_v.info['MATCH']) == 0:
+                    #     f_private1.write(annotated_v)
                 except Exception as e:
                     print(f'Warning: encounter the below exception when querying {fn_query_vcf} agains {fn_vcf}')
                     print(e)
