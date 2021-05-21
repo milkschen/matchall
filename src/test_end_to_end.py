@@ -48,7 +48,7 @@ class TestMatch(unittest.TestCase):
 
     def test_match(self):
         # Using grep to exclude VCF headers
-        cmd = (f'python src/set_operation.py -r {self.fn_fasta} -v {self.fn_vcf} '
+        cmd = (f'python src/compare.py -r {self.fn_fasta} -v {self.fn_vcf} '
                f'-q {self.fn_query_vcf} | grep "^[^#]"')
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
         stdout, stderr = process.communicate()

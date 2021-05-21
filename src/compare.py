@@ -1,8 +1,12 @@
 '''
-Finding the intersection/private sets bewteen two VCFs using the matchall algorithm.
+Compare two VCFs using the matchall algorithm.
+This script supports the below operations:
+    - [annotate] annotate matching status of variants using a "MATCH" tag in the INFO field
+    - [isec] find the intersected variants with respect to each input VCF
+    - [private] find variant sets private to each input VCF
 
 Usage:
-    python src/set_operation.py -v A.vcf.gz -q B.vcf.gz -op A_0-B_1 -m annotate,private,isec \
+    python src/compare.py -v A.vcf.gz -q B.vcf.gz -op A_0-B_1 -m annotate,private,isec \
         -o A_0-B_1.vcf.gz -r genome.fa
 '''
 import matchall
@@ -93,7 +97,7 @@ def write_to_isec_and_private(var, do_isec, do_private, f_isec, f_private) -> No
                     f_private.write(var)
 
 
-def match_vcf(
+def compare_vcf(
     fn_vcf: str,
     fn_query_vcf: str,
     fn_fasta: str,
@@ -169,12 +173,6 @@ def match_vcf(
                 write_to_isec_and_private(
                     annotated_v, do_isec, do_private, f_isec0, f_private0)
 
-                # if do_isec and max(annotated_v.info['MATCH']) == 1:
-                # # if do_isec and all(annotated_v.info['MATCH']) == 1:
-                #     f_isec0.write(annotated_v)
-                # if do_private and max(annotated_v.info['MATCH']) == 0:
-                # # if do_private and not all (annotated_v.info['MATCH']) == 0:
-                #     f_private0.write(annotated_v)
             except Exception as e:
                 print(f'Warning: encounter the below exception when querying {fn_vcf} agains {fn_query_vcf}')
                 print(e)
@@ -194,13 +192,7 @@ def match_vcf(
                 
                     write_to_isec_and_private(
                         annotated_v, do_isec, do_private, f_isec1, f_private1)
-
-                    # if do_isec and max(annotated_v.info['MATCH']) == 1:
-                    # # if do_isec and all(annotated_v.info['MATCH']) == 1:
-                    #     f_isec1.write(annotated_v)
-                    # if do_private and max(annotated_v.info['MATCH']) == 0:
-                    # # if do_private and not all (annotated_v.info['MATCH']) == 0:
-                    #     f_private1.write(annotated_v)
+                    
                 except Exception as e:
                     print(f'Warning: encounter the below exception when querying {fn_query_vcf} agains {fn_vcf}')
                     print(e)
@@ -215,7 +207,7 @@ if __name__ == '__main__':
 
     args = parse_args()
 
-    match_vcf(
+    compare_vcf(
         fn_vcf=args.vcf,
         fn_query_vcf=args.query_vcf,
         fn_fasta=args.ref,
