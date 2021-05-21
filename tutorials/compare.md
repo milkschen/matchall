@@ -6,11 +6,12 @@
 - `-v`: VCF_0
 - `-q`: VCF_1
 - `-r`: reference FASTA
-- `-op`: output prefix for `isec` and `private` results
+- `-m`: modes. ["annotate", "isec", "private"]
+- `-op`: output prefix for `isec` and `private` results (required in "isec" and "private" modes)
 - `-o`: annotated output VCF
 - `-gt`: set to evaluate in genotype resolution
 
-*Usage:*
+#### Usage:
 
 Allele-resolution:
 ```
@@ -22,7 +23,7 @@ Genotype-resolution:
 python src/compare.py -v A.vcf.gz -q B.vcf.gz -op out-A_0-B_1 -m annotate,private,isec -o out-A_0-B_1.vcf.gz -r ref.fa -gt
 ```
 
-*Difference between allele- and genotype-resolution:*
+#### Difference between allele- and genotype-resolution:
 - allele-resolution: for a HET variant where one allele matches and the other doesn't, split the genotype. Report the matched allele in `isec` and the unmatched allele in `private`. 
 - genotype-resolution: report a match genotype when all alleles are matched.
 
