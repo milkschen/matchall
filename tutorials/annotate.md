@@ -5,7 +5,7 @@
 python src/annotate.py -q cohort.release_missing2ref.no_calls.vcf.gz -v ${VCF} -r ${REF} -o ${VCF_AF} --info {INFO}
 ```
 
-** Example using a test case: **
+**Example using a test case:**
 ```
 python src/annotate.py -r test_data/chr20_1_580000.fa -v test_data/HG00733-hifi_deepvariant-chr20_568936_571052.vcf.gz -q test_data/chr20_560000_580000.cohort.vcf.gz --info AF
 ```
