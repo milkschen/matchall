@@ -52,7 +52,7 @@ def parse_args():
     )
     parser.add_argument(
         '--happy', action='store_true',
-        help='Set for hap.py VCFs. [False]'
+        help='Set for hap.py VCFs. Will only consider variants in confident regions. [False]'
     )
     parser.add_argument(
         '--debug', action='store_true',
