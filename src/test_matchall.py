@@ -1,4 +1,5 @@
 import matchall
+import filter
 import os
 import pysam
 import unittest
@@ -21,7 +22,7 @@ class PysamVariant():
         self.af = af
 
 
-class TestAlleleMatch(unittest.TestCase):
+class TestMatchAll(unittest.TestCase):
     def setUp(self):
         pass
     
@@ -241,6 +242,94 @@ class TestAlleleMatch(unittest.TestCase):
                 result = v_result.info[info['ID']]
 
             self.assertAlmostEqual(result, gold[i], places=6)
+
+class TestFilter(unittest.TestCase):
+    def setUp(self):
+        pass
+
+    @parameterized.expand([
+        [
+            'AF > 0.5',
+            ('>', ['AF', 0.5], None)
+        ],
+        [
+            'GT[0] = 0|1',
+            ('=', ['GT', "0|1"], 0)
+        ],
+        [
+            'BD!=FP',
+            ('!=', ['BD', 'FP'], None)
+        ]
+    ])
+    def test_filter_parse_expression(self, exp, gold):
+        result = filter.parse_expression(exp)
+        opt = result[0]
+        comps = result[1]
+        index = result[2]
+        self.assertEqual(opt, gold[0])
+        self.assertListEqual(comps, gold[1])
+        self.assertEqual(index, gold[2])
+
+    @parameterized.expand([
+        ['>', 1, 2, False],
+        ['!=', 5, 4, True],
+        ['==', 3.1, 3.1, True],
+        ['=', 'FP', 'FP', True]
+    ])
+    def test_eval_operator(self, operator, left, right, gold):
+        result = filter.eval_operator(operator, left, right)
+        self.assertEqual(result, gold)
+
+    @parameterized.expand([
+        [
+            PysamVariant(
+                start=100, stop=101, alleles=('C', 'A')
+            ),
+            ('AF', (0.09824279695749283,)),
+            'AF<0.1',
+            True
+        ],
+        [
+            PysamVariant(
+                start=100, stop=101, alleles=('C', 'A')
+            ),
+            ('AF', (0.09824279695749283,)),
+            'AF>=0.1',
+            False
+        ]
+    ])
+    def test_vcf_filter_core_info(
+        self, var, info_pattern, info_exps, gold):
+        vcf_header = pysam.VariantHeader()
+        vcf_header.contigs.add('chr1')
+        info = {'ID': 'AF', 'Number': 'A', 'Type': 'Float', 'Description': 'Population allele frequency'}
+        # vcf_header.formats.add('BD', '1', 'String', 'BD')
+        vcf_header.add_meta('INFO', items=info.items())
+        record = vcf_header.new_record(
+            contig=var.contig,
+            start=var.start,
+            stop=var.stop,
+            alleles=var.alleles)
+        record.info.__setitem__(info_pattern[0], info_pattern[1])
+        ie = None
+        if info_exps:
+            ie = [filter.parse_expression(info_exps)]
+        result = filter.vcf_filter_core(
+            var=record, info_exps=ie, format_exps=None
+        )
+    
+    @parameterized.expand([
+        ["DP>35", [True, True, True, False, True, True, True, True, False, False]],
+        ["GQ>20", [True, True, True, True, True, False, True, True, True, False]]
+    ])
+    def test_vcf_filter_core_format(self, format_exp, gold):
+        f_test = pysam.VariantFile(
+            os.path.join('test_data', 'HG00733-hifi_deepvariant-chr20_568936_571052.vcf.gz'))
+        results = []
+        fe = [filter.parse_expression(format_exp)]
+        for var in f_test.fetch():
+            results.append(filter.vcf_filter_core(var=var, info_exps=None, format_exps=fe))
+        self.assertListEqual(results, gold)
 
 
 if __name__ == '__main__':
