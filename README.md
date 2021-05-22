@@ -1,7 +1,7 @@
 # Matchall
 
 `matchall` (MATCH ALLele) annotates a VCF with the information in another VCF. 
-This is a Pysam implementation of the variant allele matching algorithm described in this [preprint](https://doi.org/10.1101/2021.01.06.425550).
+The core allele matching algorithm is described in this [preprint](https://doi.org/10.1101/2021.01.06.425550).
 
 Example use case: 
 
@@ -28,30 +28,34 @@ This algorithm annotates variants accurately regardless of representation.
 - bcftools (1.12)
 - tabix (1.12)
 
-### Download matchall
+
+## Usage
+### Download
 ```
 https://github.com/milkschen/matchall.git
 ```
 
-## Usage
 ### Annotate
+Annotate an INFO field in the VCF using such information from another VCF.
 ```
 python annotate.py -v target.vcf.gz -q query.vcf.gz -r ref.fa -o out.vcf.gz
 ```
 - [Detailed tutorial for matchall-annotate](tutorials/annotate.md)
 
 ### Compare
+Compare two VCFs and optionally report intersected and private variants.
 ```
 python src/compare.py -v A.vcf.gz -q B.vcf.gz -op A_0-B_1 -m annotate,private,isec -o A_0-B_1.vcf.gz -r ref.fa
 ```
 - [Detailed tutorial for matchall-compare](tutorials/compare.md)
 
 ## Test
+Run both unit and end-to-end tests:
+```
+sh test_all.sh
+```
+Or run them separately:
 ```
 python src/test_matchall.py
 python src/test_end_to_end.py
-```
-Or
-```
-sh test_all.sh
 ```
