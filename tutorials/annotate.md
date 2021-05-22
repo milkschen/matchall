@@ -30,7 +30,8 @@ optional arguments:
                         ["-"]
   -p PADDING, --padding PADDING
                         Length of paddings. [20]
-  --happy               Set for hap.py VCFs. [False]
+  --happy               Set for hap.py VCFs. Will only consider variants in
+                        confident regions. [False]
   --debug               Set to print debug messages. [False]
 ```
 
