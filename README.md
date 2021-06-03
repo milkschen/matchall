@@ -38,7 +38,7 @@ https://github.com/milkschen/matchall.git
 ### Annotate
 Annotate an INFO field in the VCF using such information from another VCF.
 ```
-python annotate.py -v target.vcf.gz -q query.vcf.gz -r ref.fa -o out.vcf.gz
+python src/annotate.py -v target.vcf.gz -q query.vcf.gz -r ref.fa -o out.vcf.gz
 ```
 - [Detailed tutorial for matchall-annotate](tutorials/annotate.md)
 
