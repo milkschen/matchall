@@ -1,7 +1,7 @@
 # Matchall
 
 `matchall` (MATCH ALLele) annotates a VCF with the information in another VCF. 
-This is a Pysam implementation of the variant allele matching algorithm described in this [preprint](https://doi.org/10.1101/2021.01.06.425550).
+The core allele matching algorithm is described in this [preprint](https://doi.org/10.1101/2021.01.06.425550).
 
 Example use case: 
 
@@ -28,55 +28,34 @@ This algorithm annotates variants accurately regardless of representation.
 - bcftools (1.12)
 - tabix (1.12)
 
-### Download matchall
+
+## Usage
+### Download
 ```
 https://github.com/milkschen/matchall.git
 ```
 
-## Cohort variants
-A DeepVariant-GLnexus-based call set for the 1000 Genomes Project (2504 samples) is avaialable [here](https://console.cloud.google.com/storage/browser/brain-genomics-public/research/cohort/1KGP/cohort_dv_glnexus_opt/v3_missing2ref;tab=objects?prefix=&forceOnObjectsSortingFiltering=false).
-You can download it through the website, or use the following command:
+### Annotate
+Annotate an INFO field in the VCF using such information from another VCF.
+```
+python src/annotate.py -v target.vcf.gz -q query.vcf.gz -r ref.fa -o out.vcf.gz
+```
+- [Detailed tutorial for matchall-annotate](tutorials/annotate.md)
 
+### Compare
+Compare two VCFs and optionally report intersected and private variants.
 ```
-for i in $(seq 1 22); do wget https://storage.googleapis.com/brain-genomics-public/research/cohort/1KGP/cohort_dv_glnexus_opt/v3_missing2ref/cohort-chr${i}.release_missing2ref.no_calls.vcf.gz; done
-for i in $(seq 1 22); do wget https://storage.googleapis.com/brain-genomics-public/research/cohort/1KGP/cohort_dv_glnexus_opt/v3_missing2ref/cohort-chr${i}.release_missing2ref.no_calls.vcf.gz.tbi; done
+python src/compare.py -v A.vcf.gz -q B.vcf.gz -op A_0-B_1 -m annotate,private,isec -o A_0-B_1.vcf.gz -r ref.fa
 ```
-
-You may also use other reference panels, such as the [GRCh38-based 1000 Genomes calls](https://www.internationalgenome.org/announcements/Variant-calls-from-1000-Genomes-Project-data-on-the-GRCh38-reference-assemlby/), [gnomAD](https://gnomad.broadinstitute.org/downloads), etc. 
-We require a VCF format where allele frequency information is provided as an `AF` tag in the `INFO` field.
-
-## Usage
-We first concatenate cohort VCFs for each contig as a unified one. If you're cohort call set is already unified, you can skip this step:
-```
-ls cohort-chr*.release_missing2ref.no_calls.vcf.gz | sort -V > cohort.list
-bcftools concat -f cohort.list -O z -o cohort.release_missing2ref.no_calls.vcf.gz; tabix cohort.release_missing2ref.no_calls.vcf.gz
-```
-
-Annotate the population allele frequency tags (`AF`) for a VCF file using the reference panel:
-```
-REF=<grch38.fa> # reference FASTA for VCF
-VCF=<vcf> # VCF to be annotated
-VCF_AF=<annotated.vcf> # path to the output annotated VCF
-
-python src/matchall.py -q cohort.release_missing2ref.no_calls.vcf.gz -v ${VCF} -r ${REF} -o - | bgzip > ${VCF_AF}; tabix ${VCF_AF}
-```
-
-After annotating, we can split the VCF file based on an allele frequency cutoff:
-```
-AF_CUTOFF=0.05 # allele frequency cutoff; we'll generate a VCF with AF > `AF_CUTOFF` and a VCF with AF <= `AF_CUTOFF`
-VCF_COMMON=<annotated.common.vcf> # path to the output annotated common VCF
-VCF_RARE=<annotated.rare.vcf> # path to the output annotated rare VCF
-
-bcftools view -O z -i "AF>${AF_CUTOFF}" -o ${VCF_COMMON} ${VCF_AF}; tabix ${VCF_COMMON}
-bcftools view -O z -i "AF<=${AF_CUTOFF}" -o ${VCF_RARE} ${VCF_AF}; tabix ${VCF_RARE}
-```
+- [Detailed tutorial for matchall-compare](tutorials/compare.md)
 
 ## Test
+Run both unit and end-to-end tests:
+```
+sh test_all.sh
+```
+Or run them separately:
 ```
 python src/test_matchall.py
 python src/test_end_to_end.py
-```
-Or
-```
-sh test_all.sh
 ```
