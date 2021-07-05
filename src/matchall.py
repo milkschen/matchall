@@ -193,3 +193,33 @@ def fetch_nearby_cohort(
     except Exception as e:
         print(f'Error: {e}')
         return None
+
+
+def vmerge_variant_pair(v1, v2):
+    ''' Peform vertical merging on a pair of phased overlapping variants.
+
+    Example:
+    chr1    10815   .       T       TC      48.95   PASS    AC=2;AN=2;DP=13;MQ=32;NS=1;RFGQ_ALL=5.73     GT:GQ:DP:MQ:PS:PQ:RFGQ:FT       1|1:3:13:32:10611:24:5.73:PASS
+    chr1    10816   .       C       CCA     2.28    PASS    AC=1;AN=2;DP=12;MQ=33;NS=1;RFGQ_ALL=3.65     GT:GQ:DP:MQ:PS:PQ:RFGQ:FT       0|1:2:12:33:10611:24:3.65:PASS
+    =>
+    chr1    10815   .       T       TC,TCCA 48.95   PASS    AC=1,1;AN=2;DP=13;MQ=32;NS=1;RFGQ_ALL=5.73   GT:GQ:DP:MQ:PS:PQ:RFGQ:FT       1|2:3:13:32:10611:24:5.73:PASS
+    '''
+    for i2, v2a in enumerate(v2.alts):
+        gt = v2.samples[0]['GT'][i2]
+        if gt == 0:
+            break
+        elif gt not in v1.samples[0]['GT']:
+            break
+        else:
+            matched_i1 = v1.samples[0]['GT'].find(gt)
+        
+        if v1.ref[v2.pos - v1.pos]
+
+        if v1.samples[0]['GT'].count(matched_i1) == 0:
+            pass #TODO
+        elif v1.samples[0]['GT'].count(matched_i1) == 1:
+            pass #TODO
+
+        for i1, v1a in enumerate(v1.alts):
+            pass #TODO
+
