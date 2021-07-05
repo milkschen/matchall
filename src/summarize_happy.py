@@ -73,7 +73,7 @@ def summarize_accuracy(fn_happy_vcf, fn_summary):
             update_happy_outcome(var, outcome)
             
             if cycle > 0 and cycle % 1000000 == 0:
-                print(f'Process {cycle} records', file=std.stderr)
+                print(f'Process {cycle} records', file=sys.stderr)
             cycle += 1
 
     write_to_tsv(outcome, fn_summary)
