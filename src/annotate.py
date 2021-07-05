@@ -35,21 +35,21 @@ def parse_args():
     #     '--info-description', default='Population allele frequency',
     #     help='Description of the INFO tag to query. ["Population allele frequency"]'
     # )
-    # parser.add_argument(
-    #     '--allele-frequency-cutoff', type=float, default=0,
-    #     help= \
-    #         'allele frequency cutoff (set to a non-zero value to activate).\n' +
-    #         'Split output VCFs will be write to ' +
-    #         '`allele-frequency-prefix`-af_gt_`allele-frequency-cutoff`.vcf' +
-    #         'and `allele-frequency-prefix`-af_leq_`allele-frequency-cutoff`.vcf\n' +
-    #         '`allele-frequency-prefix` must be set, too [0]'
-    # )
-    # parser.add_argument(
-    #     '--allele-frequency-prefix', default=None,
-    #     help= \
-    #         'Prefix of output files in the `allele-frequency-cutoff` mode.\n' +
-    #         'See `allele-frequency-cutoff` for more explanation. [None]'
-    # )
+    parser.add_argument(
+        '-afc', '--allele-frequency-cutoff', type=float, default=0,
+        help=('Allele frequency cutoff (set to a non-zero value to activate).  '
+              'Split output VCFs will be write to `afp`-af_gt_`afc`.vcf '
+              'and `afp`-af_leq_`afc`.vcf.  '
+              '`afp` must be set when this arg is not zero.  '
+              'afc="--allele-frequency-cutoff", '
+              'afp="--allele-frequency-prefix" [0]')
+    )
+    parser.add_argument(
+        '-afp', '--allele-frequency-prefix', default=None,
+        help= \
+            'Prefix of output files in the `allele-frequency-cutoff` mode.\n' +
+            'See `allele-frequency-cutoff` for more explanation. [None]'
+    )
     parser.add_argument(
         '-o', '--out', default='-',
         help='Path to output VCF. Set to "-" to print to stdout. ["-"]'
@@ -78,8 +78,9 @@ def annotate_vcf(
     info_tag: str,
     padding: int,
     happy_vcf: bool,
-    debug: bool=False
-    # af_cutoff: float=0, af_prefix: str=None
+    debug: bool=False,
+    af_cutoff: float=0,
+    af_prefix: str=None
     ) -> None:
     # Open panel VCF. Searching for `info_tag` in the header
     info = None
@@ -114,11 +115,12 @@ def annotate_vcf(
     except:
         raise ValueError(f'Error: Cannot create "{fn_out}"')
 
-    # if af_cutoff > 0 and af_prefix == None:
-    #     raise ValueError(f'Error: `allele-frequency-prefix` needs to be set when `allele-frequency-cutoff` > 0')
-    # elif af_cutoff > 0:
-    #     f_out_high = pysam.VariantFile(af_prefix+f'-af_gt_{af_cutoff}.vcf', 'w', header=f_vcf.header)
-    #     f_out_low = pysam.VariantFile(af_prefix+f'-af_leq_{af_cutoff}.vcf', 'w', header=f_vcf.header)
+    if af_cutoff > 0 and af_prefix == None:
+        raise ValueError(f'Error: `allele-frequency-prefix` needs to be set when `allele-frequency-cutoff` > 0')
+    elif af_cutoff > 0:
+        assert info['ID'] == 'AF'
+        f_out_high = pysam.VariantFile(af_prefix+f'-af_gt_{af_cutoff}.vcf', 'w', header=f_vcf.header)
+        f_out_low = pysam.VariantFile(af_prefix+f'-af_leq_{af_cutoff}.vcf', 'w', header=f_vcf.header)
     
     def select_variant(var):
         if happy_vcf and var.info.get('Regions'):
@@ -140,6 +142,24 @@ def annotate_vcf(
                 debug=debug)
             if annotated_v:
                 f_out.write(annotated_v)
+            else:
+                continue
+
+            # Write to split files if under the `allele-frequency-prefix` mode
+            if af_cutoff == 0:
+                continue
+            # Logic for HETs: if the AFs for both alleles > af_cutoff, consider high_freq
+            # Note that we need to handle alleles labelled with "*" (they don't count)
+            is_above_cutoff = True
+            for i_alt, alt in enumerate(annotated_v.alts):
+                if alt != '*':
+                    if annotated_v.info['AF'][i_alt] <= af_cutoff:
+                        is_above_cutoff = False
+                        break
+            if is_above_cutoff:
+                f_out_high.write(annotated_v)
+            else:
+                f_out_low.write(annotated_v)
 
 
 if __name__ == '__main__':
@@ -158,7 +178,7 @@ if __name__ == '__main__':
         info_tag=args.info,
         padding=args.padding,
         happy_vcf=args.happy,
-        debug=args.debug
-        # af_cutoff=args.allele_frequency_cutoff,
-        # af_prefix=args.allele_frequency_prefix
+        debug=args.debug,
+        af_cutoff=args.allele_frequency_cutoff,
+        af_prefix=args.allele_frequency_prefix
     )
