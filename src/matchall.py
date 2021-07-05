@@ -182,6 +182,7 @@ def fetch_nearby_cohort(
     except:
         update_info_empty(var, update_info)
         print(f'Warning: encounter the edge of a contig. Set "{update_info["ID"]}" as the init value.', file=sys.stderr)
+        return var
     
     try:
         return match_allele(
