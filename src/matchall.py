@@ -205,22 +205,37 @@ def vmerge_variant_pair(v1, v2):
     =>
     chr1    10815   .       T       TC,TCCA 48.95   PASS    AC=1,1;AN=2;DP=13;MQ=32;NS=1;RFGQ_ALL=5.73   GT:GQ:DP:MQ:PS:PQ:RFGQ:FT       1|2:3:13:32:10611:24:5.73:PASS
     '''
-    for i2, v2a in enumerate(v2.alts):
-        gt = v2.samples[0]['GT'][i2]
-        if gt == 0:
-            break
-        elif gt not in v1.samples[0]['GT']:
-            break
-        else:
-            matched_i1 = v1.samples[0]['GT'].find(gt)
-        
-        if v1.ref[v2.pos - v1.pos]
+    # Haploid
+    if len(v1.samples) == 0 or 'GT' not in v1.samples[0].keys():
+        if len(v1.alleles) != 2 or len(v2.alleles) != 2:
+            # Mulli-allelic variants with no genotypes are not mergable
+            return None
+        new_ref = v1.ref
+        # new_ref = v1.ref[: v2.pos - v1.pos] + v2.ref
+        new_alt = v1.alts[0][: v2.pos - v1.pos] + v2.alts[0]
+        new_stop = max([v1.stop, v2.stop])
+        # Update merged ref, alt and stop. Other fields are still from v1
+        v1.ref = new_ref
+        v1.alts = tuple([new_alt])
+        v1.alleles = tuple([v1.ref, v1.alts[0]])
+        v1.stop = new_stop
+        return v1
 
-        if v1.samples[0]['GT'].count(matched_i1) == 0:
-            pass #TODO
-        elif v1.samples[0]['GT'].count(matched_i1) == 1:
-            pass #TODO
-
-        for i1, v1a in enumerate(v1.alts):
-            pass #TODO
-
+    # Diploid
+    if len(v1.samples[0]['GT']) != 2 or len(v2.samples[0]['GT']) != 2:
+        return None
+    print('stop', v1.stop, v2.stop)
+    gt1_1 = v1.samples[0]['GT'][0]
+    gt1_2 = v1.samples[0]['GT'][1]
+    print(gt1_1, gt1_2)
+    gt2_1 = v2.samples[0]['GT'][0]
+    gt2_2 = v2.samples[0]['GT'][1]
+    print(gt2_1, gt2_2)
+    alt1 = v1.alleles[gt1_1][: v2.pos - v1.pos] + v2.alleles[gt2_1]
+    alt2 = v1.alleles[gt1_2][: v2.pos - v1.pos] + v2.alleles[gt2_2]
+    print(alt1, alt2)
+    v1.alts = tuple([alt1, alt2])
+    v1.alleles = tuple([v1.ref, alt1, alt2])
+    v1.stop = max([v1.stop, v2.stop])
+    print(v1)
+    return v1

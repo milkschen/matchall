@@ -229,6 +229,8 @@ class TestMatchAll(unittest.TestCase):
         f_vcf.header.add_meta('INFO', items=info.items())
 
         for i, v in enumerate(f_vcf.fetch()):
+            # print(v.samples.keys())
+            # print(v.samples[v.samples.keys()[0]])
             v_result = matchall.fetch_nearby_cohort(
                 var=v, f_query_vcf=f_query_vcf,
                 f_fasta=f_fasta, update_info=info, query_info=info)
@@ -242,6 +244,43 @@ class TestMatchAll(unittest.TestCase):
                 result = v_result.info[info['ID']]
 
             self.assertAlmostEqual(result, gold[i], places=6)
+    
+    def test_vmerge_variant_pair_no_gt(self):
+        vcf_header = pysam.VariantHeader()
+        vcf_header.contigs.add('chr1')
+        # info = {'ID': 'AF', 'Number': 'A', 'Type': 'Float', 'Description': 'Population allele frequency'}
+        # vcf_header.add_meta('INFO', items=info.items())
+        # Make the variant record under test
+        v1 = vcf_header.new_record(
+            contig='chr1',
+            start=10814,
+            stop=10815,
+            alleles=('T', 'TC'))
+        v2 = vcf_header.new_record(
+            contig='chr1',
+            start=10815,
+            stop=10816,
+            alleles=('C', 'CCA'))
+        v = matchall.vmerge_variant_pair(v1=v1, v2=v2)
+        self.assertEqual(v.start, 10814)
+        self.assertEqual(v.stop, 10816)
+        self.assertEqual(v.alleles, ('T', 'TCCA'))
+
+    def test_vmerge_variant_pair_diploid(self):
+        # TODO
+        f_vcf = pysam.VariantFile(os.path.join('test_data/tmp', 'HG003.octopus.overlapped.chr1.vcf'))
+        for i, v in enumerate(f_vcf):
+            if i == 0:
+                v1 = v
+            elif i == 1:
+                v2 = v
+            else:
+                break
+        v = matchall.vmerge_variant_pair(v1=v1, v2=v2)
+        self.assertEqual(v.start, 10814)
+        self.assertEqual(v.stop, 10816)
+        self.assertEqual(v.alleles, ('T', 'TC', 'TCCA'))
+
 
 class TestFilter(unittest.TestCase):
     def setUp(self):
